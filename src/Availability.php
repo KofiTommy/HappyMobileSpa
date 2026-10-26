@@ -49,7 +49,8 @@ final class Availability
         DateTimeImmutable $start,
         ?int $ignoreBookingId = null,
         ?PDO $pdo = null,
-        bool $rejectPast = true
+        bool $rejectPast = true,
+        bool $ignoreBookingConflicts = false
     ): bool {
         $pdo ??= Database::connection();
         $start = $start->setTimezone(new DateTimeZone('UTC'));
@@ -112,6 +113,9 @@ final class Availability
             }
         }
 
+        if ($ignoreBookingConflicts) {
+            return true;
+        }
         $queryStart = $start->modify('-1 day')->format('Y-m-d H:i:s');
         $statement = $pdo->prepare(
             "SELECT b.id, b.slot_start, b.slot_end, s.buffer_min

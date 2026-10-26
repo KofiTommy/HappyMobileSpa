@@ -5,8 +5,42 @@ final class Booking
 {
     public static function create(array $input): array
     {
-        $data = self::validate($input);
-        return Database::transaction(function (PDO $pdo) use ($data): array {
+        return self::persist(self::validate($input), [
+            'actor' => 'customer', 'admin_id' => null, 'status' => 'confirmed',
+            'payment_status' => 'unpaid', 'override' => false,
+        ]);
+    }
+
+    public static function createManual(array $input, int $adminId, bool $override = false): array
+    {
+        $statement = Database::connection()->prepare('SELECT id FROM admin_users WHERE id=? AND active=1');
+        $statement->execute([$adminId]);
+        if (!$statement->fetch()) {
+            throw new InvalidArgumentException('Administrator not found');
+        }
+        $status = (string) ($input['status'] ?? 'confirmed');
+        $paymentStatus = (string) ($input['payment_status'] ?? 'unpaid');
+        if (!in_array($status, ['pending', 'confirmed'], true)) {
+            throw new InvalidArgumentException('Manual booking status must be pending or confirmed');
+        }
+        if (!in_array($paymentStatus, ['paid', 'unpaid'], true)) {
+            throw new InvalidArgumentException('Invalid payment status');
+        }
+        if (empty($input['start']) && !empty($input['local_start'])) {
+            $local = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', (string) $input['local_start'], business_timezone());
+            if ($local) {
+                $input['start'] = $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+            }
+        }
+        return self::persist(self::validate($input), [
+            'actor' => 'admin', 'admin_id' => $adminId, 'status' => $status,
+            'payment_status' => $paymentStatus, 'override' => $override,
+        ]);
+    }
+
+    private static function persist(array $data, array $options): array
+    {
+        return Database::transaction(function (PDO $pdo) use ($data, $options): array {
             $candidates = $data['staff_id'] !== null
                 ? [['id' => $data['staff_id']]]
                 : Catalog::activeStaff($data['service_id']);
@@ -17,7 +51,7 @@ final class Booking
             foreach ($candidates as $candidate) {
                 $candidateId = (int) $candidate['id'];
                 self::lockStaff($candidateId, $pdo);
-                if (Availability::isAvailable($data['service_id'], $candidateId, $start, null, $pdo)) {
+                if (Availability::isAvailable($data['service_id'], $candidateId, $start, null, $pdo, true, $options['override'])) {
                     $staffId = $candidateId;
                     break;
                 }
@@ -39,10 +73,15 @@ final class Booking
             $statement->execute([
                 $reference, $customerId, $data['service_id'], $staffId,
                 $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'),
-                $service['price'], 'confirmed', 'pay_at_spa', 'unpaid', $data['notes'], $policy, $now, $now,
+                $service['price'], $options['status'], 'pay_at_spa', $options['payment_status'], $data['notes'], $policy, $now, $now,
             ]);
             $bookingId = (int) $pdo->lastInsertId();
-            self::event($bookingId, 'customer', 'created', ['reference' => $reference], $pdo);
+            $details = ['reference' => $reference];
+            if ($options['override']) {
+                $details['conflict_override'] = true;
+                $details['reason'] = 'Administrator confirmed the booking conflict override';
+            }
+            self::event($bookingId, $options['actor'], 'created', $details, $pdo, $options['admin_id']);
             return self::read($bookingId, $pdo);
         });
     }
@@ -283,7 +322,9 @@ final class Booking
     {
         $statement = $pdo->prepare(
             'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
-                    s.name AS service_name, s.duration_min, st.name AS staff_name
+                    s.name AS service_name, s.duration_min, st.name AS staff_name,
+                    (SELECT be.actor_type FROM booking_events be WHERE be.booking_id=b.id ORDER BY be.id DESC LIMIT 1) AS last_event_actor,
+                    (SELECT be.admin_id FROM booking_events be WHERE be.booking_id=b.id ORDER BY be.id DESC LIMIT 1) AS last_event_admin_id
              FROM bookings b JOIN customers c ON c.id = b.customer_id
              JOIN services s ON s.id = b.service_id JOIN staff st ON st.id = b.staff_id WHERE b.id = ?'
         );
