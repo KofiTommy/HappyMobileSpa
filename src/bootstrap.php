@@ -33,6 +33,7 @@ spl_autoload_register(function (string $class): void {
     }
 });
 
+require __DIR__ . '/view.php';
 date_default_timezone_set('UTC');
 
 if (PHP_SAPI !== 'cli') {
