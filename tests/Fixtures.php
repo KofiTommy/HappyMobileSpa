@@ -73,3 +73,19 @@ function seed_test_catalog(): void
         $settings->execute([$key, $value]);
     }
 }
+
+function seed_availability_fixture(): void
+{
+    seed_test_catalog();
+    $pdo = Database::connection();
+    $hours = $pdo->prepare('INSERT INTO staff_hours (staff_id,weekday,start_time,end_time) VALUES (?,?,?,?)');
+    $breaks = $pdo->prepare('INSERT INTO staff_breaks (staff_id,weekday,start_time,end_time) VALUES (?,?,?,?)');
+    foreach ([1, 2] as $staffId) {
+        $hours->execute([$staffId, 2, '09:00', '18:00']);
+        $breaks->execute([$staffId, 2, '12:00', '13:00']);
+    }
+    $breaks->execute([1, 2, '10:00', '10:30']);
+    $pdo->exec("INSERT INTO staff_time_off (staff_id,off_date,note) VALUES (1,'2026-10-28','Leave')");
+    $pdo->exec("INSERT INTO customers (id,phone,name,created_at,updated_at) VALUES (1,'0244127788','Existing Client',datetime(),datetime())");
+    $pdo->exec("INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at) VALUES ('SPA-EXISTING',1,1,1,'2026-10-27 09:00:00','2026-10-27 10:00:00',350,'confirmed','pay_at_spa','unpaid','','Policy',datetime(),datetime())");
+}

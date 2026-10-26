@@ -22,3 +22,4 @@ require __DIR__ . '/Fixtures.php';
 require __DIR__ . '/DatabaseTest.php';
 require __DIR__ . '/PublicPagesTest.php';
 require __DIR__ . '/CatalogTest.php';
+require __DIR__ . '/AvailabilityTest.php';
