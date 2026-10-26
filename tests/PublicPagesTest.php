@@ -17,3 +17,10 @@ function test_public_layout_branding(): void
     assert_contains('Book Now', $html, 'booking call to action');
     assert_not_contains('Serenity Spa', $html, 'old branding removed');
 }
+
+function test_booking_service_changes_refresh_therapists_and_slots(): void
+{
+    $js = file_get_contents(APP_ROOT . '/assets/js/booking.js');
+    assert_contains('refreshStaffOptions', $js, 'therapist options refresh from eligible availability');
+    assert_contains("staffSelect.value = ''", $js, 'service changes clear stale therapist preference');
+}

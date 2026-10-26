@@ -216,13 +216,18 @@ final class Catalog
         $holidays = isset($input['holidays']) ? self::validateHolidays((array) $input['holidays']) : null;
         $allowed = ['cutoff_hours', 'phone', 'email', 'address', 'timezone', 'cancellation_policy', 'opening_text'];
         Database::transaction(function (PDO $pdo) use ($input, $allowed, $hours, $holidays): void {
+            $exists = $pdo->prepare('SELECT setting_key FROM settings WHERE setting_key=?');
             $update = $pdo->prepare('UPDATE settings SET setting_value=? WHERE setting_key=?');
             $insert = $pdo->prepare('INSERT INTO settings (setting_key,setting_value) VALUES (?,?)');
             foreach ($allowed as $key) {
                 if (!array_key_exists($key, $input)) { continue; }
                 $value = trim((string) $input[$key]);
-                $update->execute([$value, $key]);
-                if ($update->rowCount() === 0) { $insert->execute([$key, $value]); }
+                $exists->execute([$key]);
+                if ($exists->fetch()) {
+                    $update->execute([$value, $key]);
+                } else {
+                    $insert->execute([$key, $value]);
+                }
             }
             if ($hours !== null) {
                 $pdo->exec('DELETE FROM business_hours');

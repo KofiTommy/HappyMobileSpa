@@ -39,8 +39,15 @@ if (form) {
   form.querySelectorAll('[data-back]').forEach(button => button.addEventListener('click', () => showStep(Math.max(0, current - 1))));
 
   const selectedService = () => serviceInputs.find(input => input.checked);
+  const refreshStaffOptions = availableSlots => {
+    const therapists = new Map();
+    availableSlots.forEach(slot => therapists.set(String(slot.staff_id), slot.staff_name));
+    staffSelect.replaceChildren(new Option('Any available therapist', ''));
+    therapists.forEach((name, id) => staffSelect.add(new Option(name, id)));
+  };
   const loadSlots = async () => {
     if (!dateInput.value || !selectedService()) return;
+    const anyTherapist = staffSelect.value === '';
     controller?.abort();
     controller = new AbortController();
     startInput.value = '';
@@ -51,6 +58,7 @@ if (form) {
       const response = await fetch(`api/availability.php?${query}`, { signal: controller.signal, headers: { Accept: 'application/json' } });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error);
+      if (anyTherapist) refreshStaffOptions(data.slots);
       if (!data.slots.length) { slotStatus.textContent = 'No times are available on this date. Try another day.'; return; }
       slotStatus.textContent = `${data.slots.length} available ${data.slots.length === 1 ? 'time' : 'times'} · Ghana time`;
       data.slots.forEach(slot => {
@@ -66,7 +74,14 @@ if (form) {
   };
   dateInput.addEventListener('change', loadSlots);
   staffSelect.addEventListener('change', loadSlots);
-  serviceInputs.forEach(input => input.addEventListener('change', () => { startInput.value = ''; slots.replaceChildren(); slotStatus.textContent = 'Therapist options will refresh when you continue.'; }));
+  serviceInputs.forEach(input => input.addEventListener('change', () => {
+    startInput.value = '';
+    staffSelect.value = '';
+    refreshStaffOptions([]);
+    slots.replaceChildren();
+    slotStatus.textContent = dateInput.value ? 'Checking actual availability…' : 'Select a date to see available times.';
+    if (dateInput.value) loadSlots();
+  }));
 
   const updateReview = () => {
     const service = selectedService()?.closest('.booking-service');

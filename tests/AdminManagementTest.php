@@ -153,3 +153,9 @@ function test_csrf_token_and_verification_work_without_web_session(): void
     assert_same(true, Csrf::verify($token), 'valid token accepted');
     assert_same(false, Csrf::verify('wrong'), 'invalid token rejected');
 }
+
+function test_admin_management_grid_collapses_on_mobile(): void
+{
+    $css = file_get_contents(APP_ROOT . '/assets/css/admin.css');
+    assert_contains('@media(max-width:760px){.management-grid{grid-template-columns:1fr}', $css, 'mobile management layout');
+}

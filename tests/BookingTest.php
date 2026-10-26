@@ -33,3 +33,15 @@ function test_overlapping_booking_is_rejected(): void
     $input['phone'] = '0200000000';
     assert_throws(fn () => Booking::create($input), 'Slot is no longer available');
 }
+
+function test_cancelled_booking_releases_slot(): void
+{
+    seed_availability_fixture();
+    $adminId = seed_admin('owner', password_hash('correct horse battery staple', PASSWORD_DEFAULT));
+    Database::connection()->exec("DELETE FROM staff_breaks WHERE staff_id=1 AND weekday=2 AND start_time='10:00'");
+    $bookingId = (int) Database::connection()->query("SELECT id FROM bookings WHERE reference='SPA-EXISTING'")->fetchColumn();
+    $start = new DateTimeImmutable('2026-10-27 09:00:00', new DateTimeZone('UTC'));
+    assert_same(false, Availability::isAvailable(1, 1, $start), 'confirmed booking blocks slot');
+    Booking::setStatus($bookingId, 'cancelled', $adminId);
+    assert_same(true, Availability::isAvailable(1, 1, $start), 'cancelled slot is available');
+}
