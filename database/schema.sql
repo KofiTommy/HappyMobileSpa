@@ -1,0 +1,147 @@
+CREATE DATABASE IF NOT EXISTS happy_mobile_spa CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE happy_mobile_spa;
+
+CREATE TABLE IF NOT EXISTS services (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  slug VARCHAR(180) NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  duration_min SMALLINT UNSIGNED NOT NULL,
+  buffer_min SMALLINT UNSIGNED NOT NULL DEFAULT 15,
+  price DECIMAL(10,2) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  archived_at DATETIME NULL,
+  display_order INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS staff (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  biography TEXT NOT NULL,
+  photo VARCHAR(255) NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS staff_services (
+  staff_id INT UNSIGNED NOT NULL,
+  service_id INT UNSIGNED NOT NULL,
+  PRIMARY KEY(staff_id, service_id),
+  CONSTRAINT fk_staff_service_staff FOREIGN KEY(staff_id) REFERENCES staff(id) ON DELETE CASCADE,
+  CONSTRAINT fk_staff_service_service FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS staff_hours (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  staff_id INT UNSIGNED NOT NULL,
+  weekday TINYINT NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  INDEX idx_staff_day(staff_id, weekday),
+  CONSTRAINT fk_staff_hours_staff FOREIGN KEY(staff_id) REFERENCES staff(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS staff_breaks (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  staff_id INT UNSIGNED NOT NULL,
+  weekday TINYINT NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  INDEX idx_staff_break_day(staff_id, weekday),
+  CONSTRAINT fk_staff_break_staff FOREIGN KEY(staff_id) REFERENCES staff(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS staff_time_off (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  staff_id INT UNSIGNED NOT NULL,
+  off_date DATE NOT NULL,
+  note VARCHAR(255) NOT NULL DEFAULT '',
+  INDEX idx_staff_time_off(staff_id, off_date),
+  CONSTRAINT fk_staff_time_off_staff FOREIGN KEY(staff_id) REFERENCES staff(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS business_hours (
+  weekday TINYINT PRIMARY KEY,
+  open_time TIME NULL,
+  close_time TIME NULL,
+  closed TINYINT(1) NOT NULL DEFAULT 0
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS holidays (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  holiday_date DATE NOT NULL UNIQUE,
+  name VARCHAR(160) NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS settings (
+  setting_key VARCHAR(100) PRIMARY KEY,
+  setting_value TEXT NOT NULL
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS customers (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  phone VARCHAR(20) NOT NULL UNIQUE,
+  name VARCHAR(160) NOT NULL,
+  email VARCHAR(190) NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS bookings (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  reference VARCHAR(20) NOT NULL UNIQUE,
+  customer_id INT UNSIGNED NOT NULL,
+  service_id INT UNSIGNED NOT NULL,
+  staff_id INT UNSIGNED NOT NULL,
+  slot_start DATETIME NOT NULL,
+  slot_end DATETIME NOT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  status VARCHAR(20) NOT NULL,
+  payment_method VARCHAR(30) NOT NULL DEFAULT 'pay_at_spa',
+  payment_status VARCHAR(20) NOT NULL DEFAULT 'unpaid',
+  notes TEXT NOT NULL,
+  accepted_policy TEXT NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_booking_schedule(staff_id, slot_start, slot_end, status),
+  INDEX idx_booking_customer(customer_id),
+  CONSTRAINT fk_booking_customer FOREIGN KEY(customer_id) REFERENCES customers(id),
+  CONSTRAINT fk_booking_service FOREIGN KEY(service_id) REFERENCES services(id),
+  CONSTRAINT fk_booking_staff FOREIGN KEY(staff_id) REFERENCES staff(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS booking_events (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT UNSIGNED NOT NULL,
+  actor_type VARCHAR(20) NOT NULL,
+  admin_id INT UNSIGNED NULL,
+  event_type VARCHAR(50) NOT NULL,
+  details JSON NOT NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_booking_event(booking_id, created_at),
+  CONSTRAINT fk_booking_event_booking FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(80) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  last_login_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS rate_limits (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  action VARCHAR(80) NOT NULL,
+  key_hash CHAR(64) NOT NULL,
+  attempts INT UNSIGNED NOT NULL DEFAULT 0,
+  window_start DATETIME NOT NULL,
+  blocked_until DATETIME NULL,
+  UNIQUE KEY unique_rate_limit(action, key_hash),
+  INDEX idx_rate_limit_window(window_start)
+) ENGINE=InnoDB;

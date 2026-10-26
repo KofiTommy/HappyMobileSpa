@@ -18,5 +18,7 @@ function assert_not_contains(string $needle, string $haystack, string $label): v
     }
 }
 
+require __DIR__ . '/Fixtures.php';
 require __DIR__ . '/DatabaseTest.php';
 require __DIR__ . '/PublicPagesTest.php';
+require __DIR__ . '/CatalogTest.php';
