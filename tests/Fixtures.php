@@ -89,3 +89,20 @@ function seed_availability_fixture(): void
     $pdo->exec("INSERT INTO customers (id,phone,name,created_at,updated_at) VALUES (1,'0244127788','Existing Client',datetime(),datetime())");
     $pdo->exec("INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at) VALUES ('SPA-EXISTING',1,1,1,'2026-10-27 09:00:00','2026-10-27 10:00:00',350,'confirmed','pay_at_spa','unpaid','','Policy',datetime(),datetime())");
 }
+
+function seed_confirmed_booking(string $startModifier = '+48 hours'): array
+{
+    seed_availability_fixture();
+    $pdo = Database::connection();
+    $start = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    $start = $start->modify($startModifier);
+    $end = $start->modify('+60 minutes');
+    $statement = $pdo->prepare("INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at) VALUES ('SPA-MANAGE01',1,1,1,?,?,350,'confirmed','pay_at_spa','unpaid','','Policy',datetime(),datetime())");
+    $statement->execute([$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')]);
+    $id = (int) $pdo->lastInsertId();
+    $query = $pdo->prepare('SELECT * FROM bookings WHERE id = ?');
+    $query->execute([$id]);
+    $booking = $query->fetch();
+    $booking['id'] = $id;
+    return $booking;
+}

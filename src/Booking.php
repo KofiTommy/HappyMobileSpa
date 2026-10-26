@@ -47,6 +47,67 @@ final class Booking
         });
     }
 
+    public static function findForCustomer(string $reference, string $phone): ?array
+    {
+        $reference = strtoupper(trim($reference));
+        $phone = self::phone($phone);
+        $pdo = Database::connection();
+        $statement = $pdo->prepare(
+            'SELECT b.id, b.reference, c.phone FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE b.reference = ?'
+        );
+        $statement->execute([$reference]);
+        $booking = $statement->fetch();
+        if (!$booking || !hash_equals($booking['reference'], $reference) || !hash_equals($booking['phone'], $phone)) {
+            return null;
+        }
+        return self::read((int) $booking['id'], $pdo);
+    }
+
+    public static function rescheduleForCustomer(int $id, string $start): array
+    {
+        $parsed = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $start, new DateTimeZone('UTC'));
+        if (!$parsed || $parsed->format('Y-m-d H:i:s') !== $start) {
+            throw new InvalidArgumentException('Choose a valid appointment time');
+        }
+        return Database::transaction(function (PDO $pdo) use ($id, $parsed): array {
+            $booking = self::read($id, $pdo);
+            self::assertCustomerChange($booking, $pdo);
+            self::lockStaff((int) $booking['staff_id'], $pdo);
+            if (!Availability::isAvailable((int) $booking['service_id'], (int) $booking['staff_id'], $parsed, $id, $pdo)) {
+                throw new DomainException('Slot is no longer available');
+            }
+            $end = $parsed->modify('+' . (int) $booking['duration_min'] . ' minutes');
+            $statement = $pdo->prepare('UPDATE bookings SET slot_start = ?, slot_end = ?, updated_at = ? WHERE id = ?');
+            $statement->execute([$parsed->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), gmdate('Y-m-d H:i:s'), $id]);
+            self::event($id, 'customer', 'rescheduled', ['from' => $booking['slot_start'], 'to' => $parsed->format('Y-m-d H:i:s')], $pdo);
+            return self::read($id, $pdo);
+        });
+    }
+
+    public static function cancelForCustomer(int $id): void
+    {
+        Database::transaction(function (PDO $pdo) use ($id): void {
+            $booking = self::read($id, $pdo);
+            self::assertCustomerChange($booking, $pdo);
+            $statement = $pdo->prepare('UPDATE bookings SET status = \'cancelled\', updated_at = ? WHERE id = ?');
+            $statement->execute([gmdate('Y-m-d H:i:s'), $id]);
+            self::event($id, 'customer', 'cancelled', ['previous_status' => $booking['status']], $pdo);
+        });
+    }
+
+    private static function assertCustomerChange(array $booking, PDO $pdo): void
+    {
+        if (!in_array($booking['status'], ['pending', 'confirmed'], true)) {
+            throw new DomainException('This appointment can no longer be changed');
+        }
+        $settings = self::settings($pdo);
+        $cutoff = (int) ($settings['cutoff_hours'] ?? 24);
+        $start = new DateTimeImmutable($booking['slot_start'], new DateTimeZone('UTC'));
+        if ($start <= new DateTimeImmutable('+' . $cutoff . ' hours', new DateTimeZone('UTC'))) {
+            throw new DomainException('Contact the spa to change this appointment');
+        }
+    }
+
     public static function reference(int $length = 8): string
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

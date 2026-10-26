@@ -37,3 +37,4 @@ require __DIR__ . '/PublicPagesTest.php';
 require __DIR__ . '/CatalogTest.php';
 require __DIR__ . '/AvailabilityTest.php';
 require __DIR__ . '/BookingTest.php';
+require __DIR__ . '/ManageBookingTest.php';
