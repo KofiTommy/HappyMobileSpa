@@ -1,0 +1,10 @@
+{
+  "name": "happy-mobile-spa",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Happy Mobile Spa website and booking system",
+  "scripts": {
+    "dev": "node server.mjs",
+    "test": "C:/xampp/php/php.exe tests/run.php"
+  }
+}
