@@ -9,6 +9,7 @@
     <title><?= escape($title) ?> · Happy Mobile Spa</title>
     <link rel="icon" href="assets/images/favicon.png" type="image/png">
     <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/css/booking.css">
     <script src="assets/js/site.js" defer></script>
 </head>
 <body>

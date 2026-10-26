@@ -18,8 +18,22 @@ function assert_not_contains(string $needle, string $haystack, string $label): v
     }
 }
 
+function assert_throws(callable $callback, string $message): void
+{
+    try {
+        $callback();
+    } catch (Throwable $error) {
+        if (!str_contains($error->getMessage(), $message)) {
+            throw new RuntimeException('Unexpected exception: ' . $error->getMessage());
+        }
+        return;
+    }
+    throw new RuntimeException('Expected exception: ' . $message);
+}
+
 require __DIR__ . '/Fixtures.php';
 require __DIR__ . '/DatabaseTest.php';
 require __DIR__ . '/PublicPagesTest.php';
 require __DIR__ . '/CatalogTest.php';
 require __DIR__ . '/AvailabilityTest.php';
+require __DIR__ . '/BookingTest.php';
