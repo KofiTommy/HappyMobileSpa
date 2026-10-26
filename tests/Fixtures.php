@@ -106,3 +106,18 @@ function seed_confirmed_booking(string $startModifier = '+48 hours'): array
     $booking['id'] = $id;
     return $booking;
 }
+
+function seed_admin(string $username, string $hash): int
+{
+    $pdo = Database::connection();
+    $statement = $pdo->prepare('INSERT INTO admin_users (username,password_hash,active,created_at,updated_at) VALUES (?,?,1,datetime(),datetime())');
+    $statement->execute([$username, $hash]);
+    return (int) $pdo->lastInsertId();
+}
+
+function seed_manual_input(): array
+{
+    $input = booking_input();
+    $input['staff_id'] = 1;
+    return $input;
+}

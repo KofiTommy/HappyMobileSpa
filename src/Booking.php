@@ -108,6 +108,64 @@ final class Booking
         }
     }
 
+    public static function adminList(array $filters = []): array
+    {
+        $pdo = Database::connection();
+        $sql = 'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
+                       s.name AS service_name, s.duration_min, st.name AS staff_name
+                FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id
+                JOIN staff st ON st.id=b.staff_id WHERE 1=1';
+        $params = [];
+        if (!empty($filters['id'])) { $sql .= ' AND b.id = ?'; $params[] = (int) $filters['id']; }
+        if (!empty($filters['date'])) { $sql .= ' AND DATE(b.slot_start) = ?'; $params[] = $filters['date']; }
+        if (!empty($filters['status'])) { $sql .= ' AND b.status = ?'; $params[] = $filters['status']; }
+        if (!empty($filters['staff_id'])) { $sql .= ' AND b.staff_id = ?'; $params[] = (int) $filters['staff_id']; }
+        if (!empty($filters['search'])) {
+            $sql .= ' AND (b.reference LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)';
+            $term = '%' . $filters['search'] . '%';
+            array_push($params, $term, $term, $term);
+        }
+        $sql .= ' ORDER BY b.slot_start ASC LIMIT 300';
+        $statement = $pdo->prepare($sql);
+        $statement->execute($params);
+        $rows = $statement->fetchAll();
+        foreach ($rows as &$row) {
+            $row['price'] = number_format((float) $row['price'], 2, '.', '');
+        }
+        return $rows;
+    }
+
+    public static function setStatus(int $id, string $status, int $adminId): void
+    {
+        Database::transaction(function (PDO $pdo) use ($id, $status, $adminId): void {
+            $booking = self::read($id, $pdo);
+            $allowed = [
+                'pending' => ['confirmed', 'cancelled'],
+                'confirmed' => ['completed', 'cancelled', 'no_show'],
+                'completed' => [], 'cancelled' => [], 'no_show' => [],
+            ];
+            if (!in_array($status, $allowed[$booking['status']] ?? [], true)) {
+                throw new DomainException('Invalid status transition');
+            }
+            $pdo->prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?')
+                ->execute([$status, gmdate('Y-m-d H:i:s'), $id]);
+            self::event($id, 'admin', 'status_changed', ['from' => $booking['status'], 'to' => $status], $pdo, $adminId);
+        });
+    }
+
+    public static function setPaymentStatus(int $id, string $status, int $adminId): void
+    {
+        if (!in_array($status, ['paid', 'unpaid'], true)) {
+            throw new InvalidArgumentException('Invalid payment status');
+        }
+        Database::transaction(function (PDO $pdo) use ($id, $status, $adminId): void {
+            $booking = self::read($id, $pdo);
+            $pdo->prepare('UPDATE bookings SET payment_status = ?, updated_at = ? WHERE id = ?')
+                ->execute([$status, gmdate('Y-m-d H:i:s'), $id]);
+            self::event($id, 'admin', 'payment_changed', ['from' => $booking['payment_status'], 'to' => $status], $pdo, $adminId);
+        });
+    }
+
     public static function reference(int $length = 8): string
     {
         $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
