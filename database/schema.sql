@@ -129,6 +129,9 @@ CREATE TABLE IF NOT EXISTS admin_users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(80) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  role VARCHAR(20) NOT NULL DEFAULT 'admin',
+  staff_id INT UNSIGNED NULL UNIQUE,
+  CONSTRAINT fk_admin_staff FOREIGN KEY(staff_id) REFERENCES staff(id),
   active TINYINT(1) NOT NULL DEFAULT 1,
   last_login_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -144,4 +147,60 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   blocked_until DATETIME NULL,
   UNIQUE KEY unique_rate_limit(action, key_hash),
   INDEX idx_rate_limit_window(window_start)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS gallery_images (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  path VARCHAR(255) NOT NULL,
+  caption VARCHAR(160) NOT NULL,
+  alt_text VARCHAR(255) NOT NULL,
+  published TINYINT(1) NOT NULL DEFAULT 1,
+  show_in_hero TINYINT(1) NOT NULL DEFAULT 1,
+  display_order INT NOT NULL DEFAULT 0
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS contact_messages (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(160) NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  phone VARCHAR(30) NOT NULL DEFAULT '',
+  subject VARCHAR(160) NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'new',
+  created_at DATETIME NOT NULL,
+  INDEX idx_contact_status_date(status,created_at)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS sms_notifications (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT UNSIGNED NOT NULL,
+  kind VARCHAR(20) NOT NULL,
+  slot_start DATETIME NOT NULL,
+  due_at DATETIME NOT NULL,
+  state VARCHAR(20) NOT NULL DEFAULT 'pending',
+  attempts INT NOT NULL DEFAULT 0,
+  claimed_at DATETIME NULL,
+  next_attempt_at DATETIME NULL,
+  submitted_at DATETIME NULL,
+  provider_id VARCHAR(160) NULL,
+  last_error VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL,
+  UNIQUE KEY unique_booking_sms(booking_id,kind,slot_start),
+  INDEX idx_sms_due(state,due_at),
+  CONSTRAINT fk_sms_booking FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS paystack_payments (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  booking_id INT UNSIGNED NOT NULL UNIQUE,
+  reference VARCHAR(80) NOT NULL UNIQUE,
+  amount_subunit BIGINT UNSIGNED NOT NULL,
+  currency VARCHAR(3) NOT NULL DEFAULT 'GHS',
+  email VARCHAR(190) NOT NULL,
+  mode VARCHAR(10) NOT NULL,
+  state VARCHAR(30) NOT NULL,
+  authorization_url VARCHAR(255) NULL,
+  created_at DATETIME NOT NULL,
+  paid_at DATETIME NULL,
+  CONSTRAINT fk_paystack_booking FOREIGN KEY(booking_id) REFERENCES bookings(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;

@@ -1,12 +1,12 @@
 <?php
 declare(strict_types=1);
 
-function booking_input(string $start = '2026-10-27 10:30:00'): array
+function booking_input(?string $start = null): array
 {
     return [
         'service_id' => 1,
         'staff_id' => null,
-        'start' => $start,
+        'start' => $start ?? fixture_datetime('10:30'),
         'name' => 'Efua Mensah',
         'phone' => '0244127788',
         'email' => '',
@@ -40,7 +40,7 @@ function test_cancelled_booking_releases_slot(): void
     $adminId = seed_admin('owner', password_hash('correct horse battery staple', PASSWORD_DEFAULT));
     Database::connection()->exec("DELETE FROM staff_breaks WHERE staff_id=1 AND weekday=2 AND start_time='10:00'");
     $bookingId = (int) Database::connection()->query("SELECT id FROM bookings WHERE reference='SPA-EXISTING'")->fetchColumn();
-    $start = new DateTimeImmutable('2026-10-27 09:00:00', new DateTimeZone('UTC'));
+    $start = new DateTimeImmutable(fixture_datetime('09:00'), new DateTimeZone('UTC'));
     assert_same(false, Availability::isAvailable(1, 1, $start), 'confirmed booking blocks slot');
     Booking::setStatus($bookingId, 'cancelled', $adminId);
     assert_same(true, Availability::isAvailable(1, 1, $start), 'cancelled slot is available');

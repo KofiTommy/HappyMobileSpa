@@ -1,0 +1,5 @@
+Options -Indexes
+RemoveHandler .jpg .png .webp
+<FilesMatch "\.(jpg|png|webp)$">
+    SetHandler default-handler
+</FilesMatch>

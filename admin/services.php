@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
-$admin = Auth::requireUser();
+$admin = Auth::requireAdmin();
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {

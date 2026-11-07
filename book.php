@@ -29,11 +29,18 @@ $old = $_POST;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::verify($_POST['csrf'] ?? null)) {
         $error = 'Your form session expired. Please review and submit again.';
-    } else {
+    } elseif (!isset($_POST['refresh_availability'])) {
         try {
+            if (isset($_POST['slot_choice']) && is_string($_POST['slot_choice'])) {
+                $_POST['start'] = (string) $_POST['slot_choice'];
+            }
+            $payOnline = ($_POST['payment_choice'] ?? 'spa') === 'mobile_money';
+            if ($payOnline && (!Paystack::ready() || !filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL))) {
+                throw new InvalidArgumentException('Mobile money payment requires an email address and available online checkout.');
+            }
             $booking = Booking::create($_POST);
             $_SESSION['recent_booking'] = ['reference' => $booking['reference'], 'time' => time()];
-            header('Location: book.php?confirmation=' . rawurlencode($booking['reference']));
+            header('Location: ' . ($payOnline ? 'payment.php?start=1&booking=' : 'book.php?confirmation=') . rawurlencode($booking['reference']));
             exit;
         } catch (DomainException | InvalidArgumentException $exception) {
             $error = $exception->getMessage();
@@ -51,4 +58,19 @@ if (!empty($old['service_id'])) {
 }
 $selectedService ??= $services[0] ?? null;
 $staff = $selectedService ? Catalog::activeStaff($selectedService['id']) : [];
-render_public('Book an appointment', 'book', compact('services', 'staff', 'selectedService', 'settings', 'error', 'old'));
+$availableSlots = [];
+$availabilityError = '';
+$appointmentDate = isset($old['appointment_date']) && is_string($old['appointment_date']) ? $old['appointment_date'] : '';
+if ($selectedService && $appointmentDate !== '') {
+    $staffId = !empty($old['staff_id']) ? filter_var($old['staff_id'], FILTER_VALIDATE_INT) : null;
+    if ($staffId === false) {
+        $availabilityError = 'Choose a valid therapist.';
+    } else {
+        try {
+            $availableSlots = Availability::slots((int) $selectedService['id'], $staffId, $appointmentDate);
+        } catch (InvalidArgumentException) {
+            $availabilityError = 'Choose a valid appointment date.';
+        }
+    }
+}
+render_public('Book an appointment', 'book', compact('services', 'staff', 'selectedService', 'settings', 'error', 'old', 'availableSlots', 'availabilityError'));

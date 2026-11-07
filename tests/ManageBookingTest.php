@@ -19,8 +19,8 @@ function test_customer_reschedule_uses_availability(): void
     seed_availability_fixture();
     Database::connection()->exec("UPDATE settings SET setting_value='0' WHERE setting_key='cutoff_hours'");
     $booking = Booking::create(booking_input());
-    $updated = Booking::rescheduleForCustomer($booking['id'], '2026-10-27 10:45:00');
-    assert_same('2026-10-27 10:45:00', $updated['slot_start'], 'new slot saved');
+    $updated = Booking::rescheduleForCustomer($booking['id'], fixture_datetime('10:45'));
+    assert_same(fixture_datetime('10:45'), $updated['slot_start'], 'new slot saved');
 }
 
 function test_rate_limit_blocks_repeated_attempts(): void

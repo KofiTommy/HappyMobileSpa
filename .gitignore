@@ -2,3 +2,14 @@
 /logo-preview.png
 /.idea/
 /.vscode/
+/assets/images/team/*.jpg
+/assets/images/team/*.png
+/assets/images/team/*.webp
+
+/assets/images/gallery/*.jpg
+/assets/images/gallery/*.png
+/assets/images/gallery/*.webp
+
+/config/sms.local.php
+
+/config/paystack.local.php

@@ -17,7 +17,11 @@ CREATE TABLE settings (setting_key TEXT PRIMARY KEY, setting_value TEXT NOT NULL
 CREATE TABLE customers (id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT UNIQUE NOT NULL, name TEXT NOT NULL, email TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE bookings (id INTEGER PRIMARY KEY AUTOINCREMENT, reference TEXT UNIQUE NOT NULL, customer_id INTEGER NOT NULL, service_id INTEGER NOT NULL, staff_id INTEGER NOT NULL, slot_start TEXT NOT NULL, slot_end TEXT NOT NULL, price NUMERIC NOT NULL, status TEXT NOT NULL, payment_method TEXT NOT NULL DEFAULT 'pay_at_spa', payment_status TEXT NOT NULL DEFAULT 'unpaid', notes TEXT NOT NULL DEFAULT '', accepted_policy TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE booking_events (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id INTEGER NOT NULL, actor_type TEXT NOT NULL, admin_id INTEGER NULL, event_type TEXT NOT NULL, details TEXT NOT NULL DEFAULT '{}', created_at TEXT NOT NULL);
-CREATE TABLE admin_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, last_login_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE admin_users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'admin', staff_id INTEGER NULL UNIQUE REFERENCES staff(id), active INTEGER NOT NULL DEFAULT 1, last_login_at TEXT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE paystack_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id INTEGER NOT NULL UNIQUE REFERENCES bookings(id) ON DELETE CASCADE, reference TEXT NOT NULL UNIQUE, amount_subunit INTEGER NOT NULL, currency TEXT NOT NULL DEFAULT 'GHS', email TEXT NOT NULL, mode TEXT NOT NULL, state TEXT NOT NULL, authorization_url TEXT NULL, created_at TEXT NOT NULL, paid_at TEXT NULL);
+CREATE TABLE sms_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id INTEGER NOT NULL REFERENCES bookings(id) ON DELETE CASCADE, kind TEXT NOT NULL, slot_start TEXT NOT NULL, due_at TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, claimed_at TEXT NULL, next_attempt_at TEXT NULL, submitted_at TEXT NULL, provider_id TEXT NULL, last_error TEXT NULL, created_at TEXT NOT NULL, UNIQUE(booking_id,kind,slot_start));
+CREATE TABLE contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', created_at TEXT NOT NULL);
+CREATE TABLE gallery_images (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, caption TEXT NOT NULL, alt_text TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 1, show_in_hero INTEGER NOT NULL DEFAULT 1, display_order INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE rate_limits (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, key_hash TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, window_start TEXT NOT NULL, blocked_until TEXT NULL, UNIQUE(action, key_hash));
 SQL);
 }
@@ -30,7 +34,7 @@ function reset_test_database(): PDO
         create_test_schema($pdo);
         $ready = true;
     } else {
-        $tables = ['rate_limits','admin_users','booking_events','bookings','customers','settings','holidays','business_hours','staff_time_off','staff_breaks','staff_hours','staff_services','staff','services'];
+        $tables = ['paystack_payments','sms_notifications','contact_messages','gallery_images','rate_limits','admin_users','booking_events','bookings','customers','settings','holidays','business_hours','staff_time_off','staff_breaks','staff_hours','staff_services','staff','services'];
         foreach ($tables as $table) {
             $pdo->exec('DELETE FROM ' . $table);
         }
@@ -74,6 +78,21 @@ function seed_test_catalog(): void
     }
 }
 
+function fixture_date(): string
+{
+    $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+    $tuesday = $today->modify('next tuesday');
+    return $tuesday->format('Y-m-d');
+}
+
+function fixture_datetime(string $time): string
+{
+    if (!preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/D', $time)) {
+        throw new InvalidArgumentException('Fixture time must be HH:MM');
+    }
+    return fixture_date() . ' ' . $time . ':00';
+}
+
 function seed_availability_fixture(): void
 {
     seed_test_catalog();
@@ -85,9 +104,13 @@ function seed_availability_fixture(): void
         $breaks->execute([$staffId, 2, '12:00', '13:00']);
     }
     $breaks->execute([1, 2, '10:00', '10:30']);
-    $pdo->exec("INSERT INTO staff_time_off (staff_id,off_date,note) VALUES (1,'2026-10-28','Leave')");
+    $date = fixture_date();
+    $leaveDate = (new DateTimeImmutable($date, new DateTimeZone('UTC')))->modify('+1 day')->format('Y-m-d');
+    $leave = $pdo->prepare('INSERT INTO staff_time_off (staff_id,off_date,note) VALUES (1,?,\'Leave\')');
+    $leave->execute([$leaveDate]);
     $pdo->exec("INSERT INTO customers (id,phone,name,created_at,updated_at) VALUES (1,'0244127788','Existing Client',datetime(),datetime())");
-    $pdo->exec("INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at) VALUES ('SPA-EXISTING',1,1,1,'2026-10-27 09:00:00','2026-10-27 10:00:00',350,'confirmed','pay_at_spa','unpaid','','Policy',datetime(),datetime())");
+    $existing = $pdo->prepare("INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at) VALUES ('SPA-EXISTING',1,1,1,?,?,350,'confirmed','pay_at_spa','unpaid','','Policy',datetime(),datetime())");
+    $existing->execute([fixture_datetime('09:00'), fixture_datetime('10:00')]);
 }
 
 function seed_confirmed_booking(string $startModifier = '+48 hours'): array

@@ -141,7 +141,7 @@ final class Catalog
         }
     }
 
-    public static function saveStaff(array $input, ?int $id = null): int
+    public static function saveStaff(array $input, ?int $id = null, ?array $photoUpload = null): int
     {
         $name = trim((string) ($input['name'] ?? ''));
         $biography = trim((string) ($input['biography'] ?? ''));
@@ -153,30 +153,46 @@ final class Catalog
             throw new InvalidArgumentException('Assign at least one treatment');
         }
         $pdo = Database::connection();
-        Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $serviceIds, $input): void {
-            $now = gmdate('Y-m-d H:i:s');
-            if ($id === null) {
-                $statement = $pdo->prepare('INSERT INTO staff (name,biography,active,created_at,updated_at) VALUES (?,?,?,?,?)');
-                $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $now]);
-                $id = (int) $pdo->lastInsertId();
-            } else {
-                $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, active=?, updated_at=? WHERE id=?');
-                $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $id]);
-                if ($statement->rowCount() !== 1 && !self::staffExists($id, $pdo)) {
-                    throw new InvalidArgumentException('Team member not found');
+        $existingPhoto = null;
+        if ($id !== null) {
+            $query = $pdo->prepare('SELECT photo FROM staff WHERE id=?');
+            $query->execute([$id]);
+            $row = $query->fetch();
+            if (!$row) { throw new InvalidArgumentException('Team member not found'); }
+            $existingPhoto = $row['photo'];
+        }
+        $uploadedPhoto = TeamPhoto::upload($photoUpload);
+        $photo = $uploadedPhoto ?? (!empty($input['remove_photo']) ? null : $existingPhoto);
+        try {
+            Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $serviceIds, $input, $photo): void {
+                $now = gmdate('Y-m-d H:i:s');
+                if ($id === null) {
+                    $statement = $pdo->prepare('INSERT INTO staff (name,biography,active,created_at,updated_at,photo) VALUES (?,?,?,?,?,?)');
+                    $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $now, $photo]);
+                    $id = (int) $pdo->lastInsertId();
+                } else {
+                    $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, active=?, updated_at=?, photo=? WHERE id=?');
+                    $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $photo, $id]);
+                    if ($statement->rowCount() !== 1 && !self::staffExists($id, $pdo)) {
+                        throw new InvalidArgumentException('Team member not found');
+                    }
+                    $pdo->prepare('DELETE FROM staff_services WHERE staff_id=?')->execute([$id]);
                 }
-                $pdo->prepare('DELETE FROM staff_services WHERE staff_id=?')->execute([$id]);
-            }
-            $check = $pdo->prepare('SELECT id FROM services WHERE id=? AND archived_at IS NULL');
-            $link = $pdo->prepare('INSERT INTO staff_services (staff_id,service_id) VALUES (?,?)');
-            foreach ($serviceIds as $serviceId) {
-                $check->execute([$serviceId]);
-                if (!$check->fetch()) {
-                    throw new InvalidArgumentException('Choose valid treatments for this team member');
+                $check = $pdo->prepare('SELECT id FROM services WHERE id=? AND archived_at IS NULL');
+                $link = $pdo->prepare('INSERT INTO staff_services (staff_id,service_id) VALUES (?,?)');
+                foreach ($serviceIds as $serviceId) {
+                    $check->execute([$serviceId]);
+                    if (!$check->fetch()) {
+                        throw new InvalidArgumentException('Choose valid treatments for this team member');
+                    }
+                    $link->execute([$id, $serviceId]);
                 }
-                $link->execute([$id, $serviceId]);
-            }
-        });
+            });
+        } catch (Throwable $error) {
+            TeamPhoto::discard($uploadedPhoto);
+            throw $error;
+        }
+        if ($existingPhoto !== $photo) { TeamPhoto::discard($existingPhoto); }
         return (int) $id;
     }
 

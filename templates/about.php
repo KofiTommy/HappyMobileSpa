@@ -1,11 +1,11 @@
-<section class="page-intro section-grid">
+<section class="page-intro editorial-hero section-grid">
     <p class="eyebrow"><span></span> Our approach</p>
     <h1>Comfort is not<br><em>an extra.</em></h1>
     <p>It is where good care begins. We want every part of your visit—from choosing a treatment to leaving your appointment—to feel clear and unhurried.</p>
 </section>
 <section class="about-split">
     <img src="assets/images/hero-spa.jpg" alt="A careful massage treatment" loading="lazy" width="1800" height="1200">
-    <div>
+    <div class="content-panel">
         <p class="section-index">BEFORE YOUR VISIT</p>
         <h2>Your comfort leads the way.</h2>
         <p>Tell your therapist about pressure preferences, sensitive areas, injuries, pregnancy, or anything else that will help them adapt your treatment. You can add a note when booking or discuss it privately when you arrive.</p>

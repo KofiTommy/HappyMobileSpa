@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 putenv('SPA_DB_DSN=sqlite::memory:');
+putenv('SPA_SMS_DISABLED=1');
+putenv('SPA_PAYSTACK_DISABLED=1');
 require dirname(__DIR__) . '/src/bootstrap.php';
 
 function assert_contains(string $needle, string $haystack, string $label): void
@@ -40,3 +42,10 @@ require __DIR__ . '/BookingTest.php';
 require __DIR__ . '/ManageBookingTest.php';
 require __DIR__ . '/AuthTest.php';
 require __DIR__ . '/AdminManagementTest.php';
+require __DIR__ . '/ReceptionistTest.php';
+require __DIR__ . '/TeamPhotoTest.php';
+require __DIR__ . '/GalleryTest.php';
+require __DIR__ . '/ContactMessageTest.php';
+require __DIR__ . '/SmsTest.php';
+require __DIR__ . '/PaystackTest.php';
+require __DIR__ . '/ReceptionOverviewTest.php';

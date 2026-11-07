@@ -1,4 +1,10 @@
-<?php declare(strict_types=1); $services = $services ?? []; ?>
+<?php
+declare(strict_types=1);
+$services = $services ?? [];
+$staff = $staff ?? [];
+$galleryImages = $galleryImages ?? [];
+$featuredService = $featuredService ?? ($services[0] ?? null);
+?>
 <section class="hero">
     <div class="hero-copy">
         <p class="eyebrow"><span></span> Massage &amp; mindful care</p>
@@ -8,13 +14,29 @@
             <a class="button" href="book.php">Book your treatment <span aria-hidden="true">↗</span></a>
             <a class="text-link" href="services.php">Explore treatments</a>
         </div>
-        <p class="booking-note"><span aria-hidden="true">✓</span> Real availability &nbsp;·&nbsp; No account needed &nbsp;·&nbsp; Pay at the spa</p>
+        <p class="booking-note"><span aria-hidden="true">✓</span> Real availability &nbsp;·&nbsp; No account needed &nbsp;·&nbsp; <?= Paystack::ready() ? 'Mobile money or pay at spa' : 'Pay at the spa' ?></p>
     </div>
-    <div class="hero-visual">
-        <img src="assets/images/hero-spa.jpg" alt="A relaxing oil massage treatment" width="1800" height="1200">
-        <div class="hero-caption"><span>01</span><p>Slow down.<br>Breathe deeply.</p></div>
+    <?php $heroImages = $heroImages ?? Gallery::defaults(); ?>
+    <div class="hero-visual hero-carousel" data-hero-carousel role="region" aria-roledescription="carousel" aria-label="Spa moments">
+        <?php foreach ($heroImages as $i => $image): ?><div class="hero-slide <?= $i === 0 ? 'is-active' : '' ?>" data-hero-slide role="group" aria-roledescription="slide" aria-label="<?= $i + 1 ?> of <?= count($heroImages) ?>" aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
+            <img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1800" height="1200" <?= $i === 0 ? 'fetchpriority="high"' : 'loading="lazy"' ?>>
+        </div><?php endforeach; ?>
+        <div class="hero-caption"><span data-hero-counter>01 / <?= str_pad((string) count($heroImages), 2, '0', STR_PAD_LEFT) ?></span><p data-hero-caption><?= escape($heroImages[0]['caption']) ?></p></div>
+        <?php if (count($heroImages) > 1): ?><div class="hero-carousel-controls" data-hero-controls hidden>
+            <button type="button" data-hero-prev aria-label="Previous photo">&#8592;</button>
+            <button type="button" data-hero-pause>Pause slideshow</button>
+            <button type="button" data-hero-next aria-label="Next photo">&#8594;</button>
+        </div><?php endif; ?>
+        <script type="application/json" data-hero-captions><?= json_encode(array_column($heroImages, 'caption'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?></script>
     </div>
     <div class="hero-seal" aria-hidden="true"><span>REST</span><span>RESTORE</span><span>RENEW</span></div>
+</section>
+
+<section class="trust-strip" aria-label="Booking benefits">
+    <span><?= ui_icon('calendar') ?> Real availability</span>
+    <span><?= ui_icon('check') ?> Secure booking</span>
+    <span><?= ui_icon('user') ?> No account needed</span>
+    <span><?= ui_icon('clock') ?> <?= Paystack::ready() ? 'Mobile money or pay at spa' : 'Pay at the spa' ?></span>
 </section>
 
 <section class="intro section-grid">
@@ -33,41 +55,86 @@
     <p class="section-index">02 / TREATMENTS</p>
     <div class="treatment-content">
         <div class="section-heading-row"><h2>Find your ritual.</h2><a class="text-link" href="services.php">View all treatments</a></div>
+        <?php if ($featuredService): ?>
+            <article class="featured-treatment">
+                <div>
+                    <p class="featured-label">Featured treatment</p>
+                    <h3><?= escape($featuredService['name']) ?></h3>
+                    <p><?= escape($featuredService['description']) ?></p>
+                </div>
+                <div class="featured-booking">
+                    <p class="service-facts"><span><?= (int) $featuredService['duration_min'] ?> min</span><strong><?= money($featuredService['price']) ?></strong></p>
+                    <a class="button button-ivory" href="book.php?service=<?= escape($featuredService['slug']) ?>">Book this treatment <?= ui_icon('arrow') ?></a>
+                </div>
+            </article>
+        <?php endif; ?>
         <?php if ($services): ?>
-            <div class="treatment-list">
-            <?php foreach (array_slice($services, 0, 4) as $index => $service): ?>
-                <a class="treatment-row" href="book.php?service=<?= escape($service['slug']) ?>">
-                    <span class="treatment-number"><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></span>
-                    <span class="treatment-name"><strong><?= escape($service['name']) ?></strong><small><?= escape($service['description']) ?></small></span>
-                    <span class="treatment-meta"><?= (int) $service['duration_min'] ?> min<br><b><?= money($service['price']) ?></b></span>
-                    <span class="round-arrow" aria-hidden="true">↗</span>
-                </a>
-            <?php endforeach; ?>
+            <div class="treatment-cards">
+                <?php foreach (array_slice($services, 0, 6) as $service): ?>
+                    <article class="treatment-card">
+                        <h3><?= escape($service['name']) ?></h3>
+                        <p><?= escape($service['description']) ?></p>
+                        <p class="service-facts"><span><?= (int) $service['duration_min'] ?> min</span><strong><?= money($service['price']) ?></strong></p>
+                        <a class="text-link" href="book.php?service=<?= escape($service['slug']) ?>">Book treatment <?= ui_icon('arrow') ?></a>
+                    </article>
+                <?php endforeach; ?>
             </div>
         <?php else: ?>
-            <div class="treatment-feature">
-                <img src="assets/images/spa-ritual.jpg" alt="Hot stones arranged for a spa ritual" loading="lazy" width="1400" height="933">
-                <div><h3>Restorative by nature.</h3><p>Massage, body rituals, and quiet moments selected with your wellbeing in mind.</p></div>
-            </div>
+            <p class="empty-state">Explore our treatments to find the right appointment for you.</p>
         <?php endif; ?>
     </div>
 </section>
 
-<section class="ritual-story">
-    <div class="ritual-image"><img src="assets/images/massage-treatment.jpg" alt="Fresh towels, flowers, and treatment oil" loading="lazy" width="1400" height="933"></div>
-    <div class="ritual-panel">
-        <p class="eyebrow eyebrow-light"><span></span> Your appointment</p>
-        <h2>A little preparation.<br>A lot of <em>letting go.</em></h2>
-        <ol class="ritual-steps">
-            <li><span>01</span><div><h3>Choose what you need</h3><p>Browse treatments, compare durations, and select a therapist if you have a preference.</p></div></li>
-            <li><span>02</span><div><h3>Find your time</h3><p>See appointment times based on our actual schedule—no back-and-forth messages.</p></div></li>
-            <li><span>03</span><div><h3>Arrive and exhale</h3><p>Receive your booking reference instantly. Payment is made when you visit the spa.</p></div></li>
-        </ol>
-        <a class="button button-ivory" href="book.php">Find an appointment <span aria-hidden="true">↗</span></a>
+<?php if ($staff): ?>
+<section class="team-section section-grid" id="team">
+    <p class="section-index">03 / YOUR THERAPISTS</p>
+    <div class="team-content">
+        <div class="section-heading-row"><h2>Choose your therapist.</h2><p>Select a preferred therapist during booking, or choose any available therapist.</p></div>
+        <div class="team-grid">
+            <?php foreach ($staff as $person): ?>
+                <article class="team-card">
+                    <?php if ($person['photo'] !== null): ?>
+                        <img src="<?= escape($person['photo']) ?>" alt="<?= escape($person['name']) ?>" width="800" height="1000" loading="lazy">
+                    <?php else: ?>
+                        <?php
+                        $initials = '';
+                        $nameParts = preg_split('/\s+/', trim($person['name'])) ?: [];
+                        foreach (array_slice($nameParts, 0, 2) as $part) {
+                            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+                        }
+                        ?>
+                        <div class="team-initials" aria-hidden="true"><?= escape($initials) ?></div>
+                    <?php endif; ?>
+                    <h3><?= escape($person['name']) ?></h3>
+                </article>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<?php if ($galleryImages): ?>
+<section class="home-gallery section-grid" id="gallery-preview">
+    <p class="section-index">04 / SPA MOMENTS</p>
+    <div class="home-gallery-content">
+        <div class="section-heading-row"><h2>A glimpse inside.</h2><a class="text-link" href="gallery.php">View gallery</a></div>
+        <div class="home-gallery-grid">
+            <?php foreach ($galleryImages as $image): ?>
+                <figure><img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1400" height="933" loading="lazy"></figure>
+            <?php endforeach; ?>
+        </div>
+    </div>
+</section>
+<?php endif; ?>
+
+<section class="home-faq section-grid" id="faqs">
+    <p class="section-index">05 / PRACTICAL DETAILS</p>
+    <div><h2>Before you book.</h2>
+        <details><summary>How do I book? <?= ui_icon('plus') ?></summary><p>Choose a treatment, select an available time, enter your details, and review your appointment. No account is required.</p></details>
+        <details><summary>Can I change or cancel? <?= ui_icon('plus') ?></summary><p>Use Manage booking with your reference and phone number. Online changes follow the cancellation policy shown during booking.</p></details>
+        <details><summary>How do I pay? <?= ui_icon('plus') ?></summary><p><?= Paystack::ready() ? 'Choose mobile money through Paystack or pay at the spa. Your review page shows the available choices.' : 'Payment is made at the spa.' ?></p></details>
+        <details><summary>What should I tell my therapist? <?= ui_icon('plus') ?></summary><p>Add pressure preferences, sensitive areas, pregnancy, injuries, or comfort notes to your booking, or discuss them privately when you arrive.</p></details>
     </div>
 </section>
 
-<section class="closing-note section-grid">
-    <p class="section-index">03 / A QUIET REMINDER</p>
-    <blockquote>“You do not have to earn<br>a moment of <em>rest.</em>”</blockquote>
-</section>
+<script src="assets/js/hero-carousel.js" defer></script>

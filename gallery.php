@@ -1,4 +1,4 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/src/bootstrap.php';
-render_public('Gallery', 'gallery', ['settings' => Catalog::settings()]);
+render_public('Gallery', 'gallery', ['settings' => Catalog::settings(), 'images' => Gallery::images()]);

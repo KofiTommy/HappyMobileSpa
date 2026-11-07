@@ -5,19 +5,22 @@ final class Booking
 {
     public static function create(array $input): array
     {
-        return self::persist(self::validate($input), [
+        $booking = self::persist(self::validate($input), [
             'actor' => 'customer', 'admin_id' => null, 'status' => 'confirmed',
             'payment_status' => 'unpaid', 'override' => false,
         ]);
+        SmsNotifications::dispatchConfirmation((int) $booking['id']);
+        return $booking;
     }
 
     public static function createManual(array $input, int $adminId, bool $override = false): array
     {
-        $statement = Database::connection()->prepare('SELECT id FROM admin_users WHERE id=? AND active=1');
+        $statement = Database::connection()->prepare('SELECT id, role FROM admin_users WHERE id=? AND active=1');
         $statement->execute([$adminId]);
-        if (!$statement->fetch()) {
-            throw new InvalidArgumentException('Administrator not found');
+        if (!($user = $statement->fetch())) {
+            throw new InvalidArgumentException('Staff account not found');
         }
+        if ($override) { Auth::assertAdmin($user); }
         $status = (string) ($input['status'] ?? 'confirmed');
         $paymentStatus = (string) ($input['payment_status'] ?? 'unpaid');
         if (!in_array($status, ['pending', 'confirmed'], true)) {
@@ -32,10 +35,12 @@ final class Booking
                 $input['start'] = $local->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
             }
         }
-        return self::persist(self::validate($input), [
+        $booking = self::persist(self::validate($input), [
             'actor' => 'admin', 'admin_id' => $adminId, 'status' => $status,
             'payment_status' => $paymentStatus, 'override' => $override,
         ]);
+        SmsNotifications::dispatchConfirmation((int) $booking['id']);
+        return $booking;
     }
 
     private static function persist(array $data, array $options): array
@@ -82,7 +87,9 @@ final class Booking
                 $details['reason'] = 'Administrator confirmed the booking conflict override';
             }
             self::event($bookingId, $options['actor'], 'created', $details, $pdo, $options['admin_id']);
-            return self::read($bookingId, $pdo);
+            $booking = self::read($bookingId, $pdo);
+            SmsNotifications::schedule($booking, $pdo);
+            return $booking;
         });
     }
 
@@ -108,7 +115,7 @@ final class Booking
         if (!$parsed || $parsed->format('Y-m-d H:i:s') !== $start) {
             throw new InvalidArgumentException('Choose a valid appointment time');
         }
-        return Database::transaction(function (PDO $pdo) use ($id, $parsed): array {
+        $updated = Database::transaction(function (PDO $pdo) use ($id, $parsed): array {
             $booking = self::read($id, $pdo);
             self::assertCustomerChange($booking, $pdo);
             self::lockStaff((int) $booking['staff_id'], $pdo);
@@ -119,8 +126,12 @@ final class Booking
             $statement = $pdo->prepare('UPDATE bookings SET slot_start = ?, slot_end = ?, updated_at = ? WHERE id = ?');
             $statement->execute([$parsed->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'), gmdate('Y-m-d H:i:s'), $id]);
             self::event($id, 'customer', 'rescheduled', ['from' => $booking['slot_start'], 'to' => $parsed->format('Y-m-d H:i:s')], $pdo);
-            return self::read($id, $pdo);
+            $updated = self::read($id, $pdo);
+            SmsNotifications::schedule($updated, $pdo);
+            return $updated;
         });
+        SmsNotifications::dispatchConfirmation($id);
+        return $updated;
     }
 
     public static function cancelForCustomer(int $id): void
@@ -131,6 +142,7 @@ final class Booking
             $statement = $pdo->prepare('UPDATE bookings SET status = \'cancelled\', updated_at = ? WHERE id = ?');
             $statement->execute([gmdate('Y-m-d H:i:s'), $id]);
             self::event($id, 'customer', 'cancelled', ['previous_status' => $booking['status']], $pdo);
+            SmsNotifications::schedule(self::read($id, $pdo), $pdo);
         });
     }
 
@@ -151,12 +163,19 @@ final class Booking
     {
         $pdo = Database::connection();
         $sql = 'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
-                       s.name AS service_name, s.duration_min, st.name AS staff_name
+                       s.name AS service_name, s.duration_min, st.name AS staff_name,
+                       (SELECT MIN(be.created_at) FROM booking_events be WHERE be.booking_id=b.id AND be.event_type=\'checked_in\') AS checked_in_at
                 FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id
                 JOIN staff st ON st.id=b.staff_id WHERE 1=1';
         $params = [];
         if (!empty($filters['id'])) { $sql .= ' AND b.id = ?'; $params[] = (int) $filters['id']; }
         if (!empty($filters['date'])) { $sql .= ' AND DATE(b.slot_start) = ?'; $params[] = $filters['date']; }
+        if (!empty($filters['start_date'])) {
+            $sql .= ' AND DATE(b.slot_start) >= ?'; $params[] = $filters['start_date'];
+        }
+        if (!empty($filters['end_date'])) {
+            $sql .= ' AND DATE(b.slot_start) <= ?'; $params[] = $filters['end_date'];
+        }
         if (!empty($filters['status'])) { $sql .= ' AND b.status = ?'; $params[] = $filters['status']; }
         if (!empty($filters['staff_id'])) { $sql .= ' AND b.staff_id = ?'; $params[] = (int) $filters['staff_id']; }
         if (!empty($filters['search'])) {
@@ -189,6 +208,27 @@ final class Booking
             $pdo->prepare('UPDATE bookings SET status = ?, updated_at = ? WHERE id = ?')
                 ->execute([$status, gmdate('Y-m-d H:i:s'), $id]);
             self::event($id, 'admin', 'status_changed', ['from' => $booking['status'], 'to' => $status], $pdo, $adminId);
+            SmsNotifications::schedule(self::read($id, $pdo), $pdo);
+        });
+        if ($status === 'confirmed') { SmsNotifications::dispatchConfirmation($id); }
+    }
+
+    public static function checkIn(int $id, int $userId): void
+    {
+        Database::transaction(function (PDO $pdo) use ($id, $userId): void {
+            $sql = 'SELECT id FROM bookings WHERE id = ?';
+            if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') { $sql .= ' FOR UPDATE'; }
+            $statement = $pdo->prepare($sql);
+            $statement->execute([$id]);
+            $booking = self::read($id, $pdo);
+            $date = (new DateTimeImmutable($booking['slot_start'], new DateTimeZone('UTC')))->setTimezone(business_timezone())->format('Y-m-d');
+            if ($booking['status'] !== 'confirmed' || $date !== (new DateTimeImmutable('today', business_timezone()))->format('Y-m-d')) {
+                throw new DomainException('Only confirmed appointments for today can be checked in.');
+            }
+            $statement = $pdo->prepare("SELECT id FROM booking_events WHERE booking_id = ? AND event_type = 'checked_in'");
+            $statement->execute([$id]);
+            if ($statement->fetch()) { throw new DomainException('This client is already checked in.'); }
+            self::event($id, 'admin', 'checked_in', [], $pdo, $userId);
         });
     }
 
@@ -198,7 +238,12 @@ final class Booking
             throw new InvalidArgumentException('Invalid payment status');
         }
         Database::transaction(function (PDO $pdo) use ($id, $status, $adminId): void {
+            $lock = $pdo->prepare('SELECT id FROM bookings WHERE id=?' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : ''));
+            $lock->execute([$id]);
             $booking = self::read($id, $pdo);
+            $online = $pdo->prepare("SELECT id FROM paystack_payments WHERE booking_id=? AND state IN ('paid','paid_review')");
+            $online->execute([$id]);
+            if ($booking['payment_method'] === 'paystack_momo' || $online->fetch()) { throw new DomainException('Paystack payments must be managed through Paystack. This action cannot refund or reverse a payment.'); }
             $pdo->prepare('UPDATE bookings SET payment_status = ?, updated_at = ? WHERE id = ?')
                 ->execute([$status, gmdate('Y-m-d H:i:s'), $id]);
             self::event($id, 'admin', 'payment_changed', ['from' => $booking['payment_status'], 'to' => $status], $pdo, $adminId);

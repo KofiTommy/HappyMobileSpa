@@ -12,15 +12,15 @@
     <link rel="stylesheet" href="assets/css/booking.css">
     <script src="assets/js/site.js" defer></script>
 </head>
-<body>
+<body class="page-<?= escape(pathinfo($activePage, PATHINFO_FILENAME)) ?>">
 <a class="skip-link" href="#main">Skip to content</a>
 <header class="site-header" data-header>
     <a class="brand" href="index.php" aria-label="Happy Mobile Spa home">
         <img src="assets/images/logo.jpg" alt="Happy Mobile Massage" width="180" height="97">
         <span>Happy Mobile Spa</span>
     </a>
-    <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-menu-toggle>
-        <span></span><span></span><span></span><span class="sr-only">Toggle navigation</span>
+    <button class="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="site-nav" data-menu-toggle>
+        <?= ui_icon('menu', 'menu-icon-open') ?><?= ui_icon('close', 'menu-icon-close') ?>
     </button>
     <nav id="site-nav" class="site-nav" aria-label="Main navigation" data-menu>
         <a href="index.php" <?= $activePage === 'index.php' ? 'aria-current="page"' : '' ?>>Home</a>
@@ -29,16 +29,19 @@
         <a href="gallery.php" <?= $activePage === 'gallery.php' ? 'aria-current="page"' : '' ?>>Gallery</a>
         <a href="contact.php" <?= $activePage === 'contact.php' ? 'aria-current="page"' : '' ?>>Contact</a>
     </nav>
-    <a class="button button-small header-book" href="book.php">Book Now <span aria-hidden="true">↗</span></a>
+    <a class="button button-small header-book" href="book.php">Book Now <?= ui_icon('arrow') ?></a>
 </header>
 <main id="main">
 <?= $content ?>
 </main>
+<nav class="mobile-book-bar" aria-label="Quick booking">
+    <a href="book.php"><?= ui_icon('calendar') ?><span>Book your treatment</span><?= ui_icon('arrow') ?></a>
+</nav>
 <footer class="site-footer">
     <div class="footer-invitation">
         <p class="eyebrow eyebrow-light">Your time. Your treatment.</p>
         <h2>Make room for<br><em>feeling better.</em></h2>
-        <a class="button button-ivory" href="book.php">Choose your treatment <span aria-hidden="true">↗</span></a>
+        <a class="button button-ivory" href="book.php">Choose your treatment <?= ui_icon('arrow') ?></a>
     </div>
     <div class="footer-bottom">
         <a class="footer-brand" href="index.php">Happy Mobile Spa</a>

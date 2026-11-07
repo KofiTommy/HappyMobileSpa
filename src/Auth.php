@@ -26,7 +26,7 @@ final class Auth
     public static function requireUser(): array
     {
         $id = (int) ($_SESSION['admin_id'] ?? 0);
-        $statement = Database::connection()->prepare('SELECT id, username FROM admin_users WHERE id = ? AND active = 1');
+        $statement = Database::connection()->prepare('SELECT id, username, role FROM admin_users WHERE id = ? AND active = 1');
         $statement->execute([$id]);
         $admin = $statement->fetch();
         if (!$admin) {
@@ -37,6 +37,21 @@ final class Auth
             exit;
         }
         return $admin;
+    }
+
+    public static function requireAdmin(): array
+    {
+        $user = self::requireUser();
+        self::assertAdmin($user);
+        return $user;
+    }
+
+    public static function assertAdmin(array $user): void
+    {
+        if (($user['role'] ?? '') !== 'admin') {
+            if (PHP_SAPI !== 'cli') { http_response_code(403); }
+            throw new DomainException('Administrator access required.');
+        }
     }
 
     public static function logout(): void

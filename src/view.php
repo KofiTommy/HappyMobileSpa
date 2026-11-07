@@ -18,6 +18,11 @@ function render_public(string $title, string $template, array $data = []): void
     require APP_ROOT . '/templates/layout.php';
 }
 
+function ui_icon(string $name, string $class = ''): string
+{
+    return Ui::icon($name, $class);
+}
+
 function render_admin(string $title, string $template, array $data = []): void
 {
     $template = basename($template);
