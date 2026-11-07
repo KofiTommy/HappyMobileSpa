@@ -346,8 +346,8 @@ final class Booking
         $existing = $statement->fetch();
         $now = gmdate('Y-m-d H:i:s');
         if ($existing) {
-            $statement = $pdo->prepare('UPDATE customers SET name = ?, email = NULLIF(?, \'\'), updated_at = ? WHERE id = ?');
-            $statement->execute([$data['name'], $data['email'], $now, $existing['id']]);
+            $statement = $pdo->prepare('UPDATE customers SET name = ?, email = ?, updated_at = ? WHERE id = ?');
+            $statement->execute([$data['name'], $data['email'] ?: null, $now, $existing['id']]);
             return (int) $existing['id'];
         }
         $statement = $pdo->prepare('INSERT INTO customers (phone,name,email,created_at,updated_at) VALUES (?,?,?,?,?)');

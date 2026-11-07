@@ -45,3 +45,14 @@ function test_cancelled_booking_releases_slot(): void
     Booking::setStatus($bookingId, 'cancelled', $adminId);
     assert_same(true, Availability::isAvailable(1, 1, $start), 'cancelled slot is available');
 }
+
+function test_customer_email_update_avoids_collation_sensitive_nullif(): void
+{
+    $source = file_get_contents(APP_ROOT . '/src/Booking.php');
+    assert_not_contains('NULLIF(', $source, 'customer update avoids mixed-collation NULLIF expression');
+
+    seed_availability_fixture();
+    Booking::create(booking_input());
+    $email = Database::connection()->query("SELECT email FROM customers WHERE phone='0244127788'")->fetchColumn();
+    assert_same(null, $email, 'blank email is still stored as SQL NULL');
+}
