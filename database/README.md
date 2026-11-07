@@ -140,6 +140,16 @@ A booking reuses one payment reference and hosted checkout URL to prevent duplic
 
 Money received after cancellation, completion, a price change, or another recorded payment is flagged **paid review** for the administrator and does not reopen the booking. Refunds and disputes are handled directly in Paystack; this integration does not initiate refunds or synchronize refund/chargeback events. Cancelling a booking does not refund a payment. Paid online payments cannot be reversed with the ordinary paid/unpaid control. Test mode simulates paid bookings without collecting money: use dedicated test appointments, and clear them before going live.
 
+## Monthly finance, salaries, expenses, and budgets
+
+Existing installations: back up the database, then run `C:/xampp/php/php.exe database/migrate_finance.php` once. The migration is safe to rerun and preserves existing bookings and staff. Fresh installations include the Finance tables in `schema.sql`.
+
+For Hostinger hosting without command-line access, back up the database and upload the application changes first. Open the spa database in **hPanel → phpMyAdmin**, select **Import**, and import `database/migrate_finance_hostinger.sql` once. This Hostinger file intentionally adds `staff.monthly_salary`; do not run it if that column already exists or on a fresh installation created from the updated `schema.sql`.
+
+Open **Admin → Finance & budgets**. Set each worker’s usual monthly salary under **Team & schedules**, then generate pending monthly salary records without overwriting existing ones. Edit records to add bonuses, deductions, paid dates, payment methods, and references. Record other expenses with optional JPG, PNG, WebP, or PDF receipts up to 5 MB. Receipts are stored under `storage/receipts`, blocked from direct web access, and streamed only to signed-in administrators; include them in private backups and allow PHP to write to that folder.
+
+Monthly budgets cover expected income, payroll, and expense categories. The overview separates actual income received from expected appointment value, and paid amounts from pending commitments. Cancelling preserves the record and audit history while excluding it from totals; editing a cancelled record can restore it. Overview, salary, and expense CSV exports are available for the selected month. All Finance mutations and receipt/CSV routes are administrator-only; receptionist permissions are unchanged.
+
 ## Tests
 
 ```bash

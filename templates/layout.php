@@ -53,6 +53,10 @@
         <div class="footer-links"><a href="manage.php">Manage booking</a><a href="admin/login.php">Staff login</a></div>
     </div>
     <p class="copyright">&copy; <?= date('Y') ?> Happy Mobile Spa. Time set aside for you.</p>
+    <a class="developer-credit" href="https://tokaatechconsult.com" target="_blank" rel="noopener noreferrer">
+        <img src="assets/images/tokaa-tech-consult.png" alt="" width="420" height="420">
+        <span>Developed by <strong>Tokaa Tech Consult</strong></span>
+    </a>
 </footer>
 </body>
 </html>

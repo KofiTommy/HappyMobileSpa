@@ -13,3 +13,6 @@
 /config/sms.local.php
 
 /config/paystack.local.php
+
+/storage/receipts/*
+!/storage/receipts/.htaccess

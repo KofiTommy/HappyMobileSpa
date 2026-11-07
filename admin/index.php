@@ -12,4 +12,5 @@ if ($admin['role'] === 'admin') {
     $unreadMessages = (int) Database::connection()->query("SELECT COUNT(*) FROM contact_messages WHERE status='new'")->fetchColumn();
 }
 $summary = ReceptionOverview::summarize($bookings, $upcoming, $unreadMessages);
-render_admin('Dashboard', 'dashboard', compact('admin', 'today', 'bookings', 'upcoming', 'paidRevenue', 'summary'));
+$charts = DashboardCharts::load($admin['role'] === 'admin');
+render_admin('Dashboard', 'dashboard', compact('admin', 'today', 'bookings', 'upcoming', 'paidRevenue', 'summary', 'charts'));

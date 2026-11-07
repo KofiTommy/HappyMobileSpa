@@ -15,6 +15,11 @@ function test_public_layout_branding(): void
     assert_contains('Happy Mobile Spa', $html, 'brand name');
     assert_contains('assets/images/logo.jpg', $html, 'logo asset');
     assert_contains('Book Now', $html, 'booking call to action');
+    assert_same(true, is_file(APP_ROOT . '/assets/images/tokaa-tech-consult.png'), 'Tokaa footer logo exists');
+    assert_contains('assets/images/tokaa-tech-consult.png', $html, 'Tokaa footer logo rendered');
+    assert_contains('href="https://tokaatechconsult.com"', $html, 'developer credit links to Tokaa website');
+    assert_contains('Developed by', $html, 'developer credit label');
+    assert_contains('rel="noopener noreferrer"', $html, 'external developer link is protected');
     assert_not_contains('Serenity Spa', $html, 'old branding removed');
 }
 

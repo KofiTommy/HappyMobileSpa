@@ -6,7 +6,7 @@ function create_test_schema(PDO $pdo): void
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec(<<<'SQL'
 CREATE TABLE services (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, description TEXT NOT NULL, duration_min INTEGER NOT NULL, buffer_min INTEGER NOT NULL DEFAULT 15, price NUMERIC NOT NULL, active INTEGER NOT NULL DEFAULT 1, archived_at TEXT NULL, display_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-CREATE TABLE staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, biography TEXT NOT NULL DEFAULT '', photo TEXT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, biography TEXT NOT NULL DEFAULT '', monthly_salary NUMERIC NOT NULL DEFAULT 0, photo TEXT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE staff_services (staff_id INTEGER NOT NULL, service_id INTEGER NOT NULL, PRIMARY KEY(staff_id, service_id));
 CREATE TABLE staff_hours (id INTEGER PRIMARY KEY AUTOINCREMENT, staff_id INTEGER NOT NULL, weekday INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL);
 CREATE TABLE staff_breaks (id INTEGER PRIMARY KEY AUTOINCREMENT, staff_id INTEGER NOT NULL, weekday INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL);
@@ -23,6 +23,10 @@ CREATE TABLE sms_notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, booking_id
 CREATE TABLE contact_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, email TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', subject TEXT NOT NULL, message TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'new', created_at TEXT NOT NULL);
 CREATE TABLE gallery_images (id INTEGER PRIMARY KEY AUTOINCREMENT, path TEXT NOT NULL, caption TEXT NOT NULL, alt_text TEXT NOT NULL, published INTEGER NOT NULL DEFAULT 1, show_in_hero INTEGER NOT NULL DEFAULT 1, display_order INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE rate_limits (id INTEGER PRIMARY KEY AUTOINCREMENT, action TEXT NOT NULL, key_hash TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, window_start TEXT NOT NULL, blocked_until TEXT NULL, UNIQUE(action, key_hash));
+CREATE TABLE salary_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, staff_id INTEGER NOT NULL REFERENCES staff(id), salary_month TEXT NOT NULL, basic_salary NUMERIC NOT NULL, bonus NUMERIC NOT NULL DEFAULT 0, deduction NUMERIC NOT NULL DEFAULT 0, net_salary NUMERIC NOT NULL, status TEXT NOT NULL DEFAULT 'pending', paid_at TEXT NULL, payment_method TEXT NOT NULL DEFAULT '', reference TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', created_by INTEGER NOT NULL, updated_by INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, cancelled_at TEXT NULL, UNIQUE(staff_id,salary_month));
+CREATE TABLE expenses (id INTEGER PRIMARY KEY AUTOINCREMENT, expense_date TEXT NOT NULL, category TEXT NOT NULL, vendor TEXT NOT NULL DEFAULT '', description TEXT NOT NULL, amount NUMERIC NOT NULL, status TEXT NOT NULL DEFAULT 'pending', paid_at TEXT NULL, payment_method TEXT NOT NULL DEFAULT '', reference TEXT NOT NULL DEFAULT '', notes TEXT NOT NULL DEFAULT '', receipt_path TEXT NULL, receipt_name TEXT NULL, created_by INTEGER NOT NULL, updated_by INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, cancelled_at TEXT NULL);
+CREATE TABLE monthly_budgets (salary_month TEXT PRIMARY KEY, expected_income NUMERIC NOT NULL DEFAULT 0, salary_budget NUMERIC NOT NULL DEFAULT 0, expense_budgets TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', created_by INTEGER NOT NULL, updated_by INTEGER NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE finance_events (id INTEGER PRIMARY KEY AUTOINCREMENT, entity_type TEXT NOT NULL, entity_id INTEGER NOT NULL, action TEXT NOT NULL, details TEXT NOT NULL, admin_id INTEGER NULL, created_at TEXT NOT NULL);
 SQL);
 }
 
@@ -34,7 +38,7 @@ function reset_test_database(): PDO
         create_test_schema($pdo);
         $ready = true;
     } else {
-        $tables = ['paystack_payments','sms_notifications','contact_messages','gallery_images','rate_limits','admin_users','booking_events','bookings','customers','settings','holidays','business_hours','staff_time_off','staff_breaks','staff_hours','staff_services','staff','services'];
+        $tables = ['finance_events','salary_payments','expenses','monthly_budgets','paystack_payments','sms_notifications','contact_messages','gallery_images','rate_limits','admin_users','booking_events','bookings','customers','settings','holidays','business_hours','staff_time_off','staff_breaks','staff_hours','staff_services','staff','services'];
         foreach ($tables as $table) {
             $pdo->exec('DELETE FROM ' . $table);
         }

@@ -27,6 +27,7 @@
                 <a href="services.php" <?= $activeAdminPage === 'services.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('check') ?><span>Treatments</span></a>
                 <a href="staff.php" <?= $activeAdminPage === 'staff.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('user') ?><span>Team &amp; schedules</span></a>
                 <a href="payments.php" <?= $activeAdminPage === 'payments.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('check') ?><span>Mobile money payments</span></a>
+                <a href="finance.php" <?= in_array($activeAdminPage, ['finance.php', 'finance-export.php', 'expense-receipt.php'], true) ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('calendar') ?><span>Finance &amp; budgets</span></a>
                 <a href="sms.php" <?= $activeAdminPage === 'sms.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('mail') ?><span>SMS notifications</span></a>
                 <a href="messages.php" <?= $activeAdminPage === 'messages.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('mail') ?><span>Customer messages</span></a>
                 <a href="gallery.php" <?= $activeAdminPage === 'gallery.php' ? 'class="active" aria-current="page"' : '' ?>><?= ui_icon('pin') ?><span>Gallery &amp; homepage</span></a>

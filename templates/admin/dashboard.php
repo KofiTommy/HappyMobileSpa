@@ -39,6 +39,8 @@
     <?php endif; ?>
 </section>
 
+<?php require __DIR__ . '/dashboard-charts.php'; ?>
+
 <div class="dashboard-grid">
     <section class="admin-section">
         <div class="section-title">

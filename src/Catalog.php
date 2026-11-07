@@ -145,6 +145,7 @@ final class Catalog
     {
         $name = trim((string) ($input['name'] ?? ''));
         $biography = trim((string) ($input['biography'] ?? ''));
+        $monthlySalary = Finance::amount($input['monthly_salary'] ?? '0', 'Usual monthly salary', true);
         if (mb_strlen($name) < 2 || mb_strlen($name) > 160) {
             throw new InvalidArgumentException('Enter a valid team member name');
         }
@@ -164,15 +165,15 @@ final class Catalog
         $uploadedPhoto = TeamPhoto::upload($photoUpload);
         $photo = $uploadedPhoto ?? (!empty($input['remove_photo']) ? null : $existingPhoto);
         try {
-            Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $serviceIds, $input, $photo): void {
+            Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $monthlySalary, $serviceIds, $input, $photo): void {
                 $now = gmdate('Y-m-d H:i:s');
                 if ($id === null) {
-                    $statement = $pdo->prepare('INSERT INTO staff (name,biography,active,created_at,updated_at,photo) VALUES (?,?,?,?,?,?)');
-                    $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $now, $photo]);
+                    $statement = $pdo->prepare('INSERT INTO staff (name,biography,monthly_salary,active,created_at,updated_at,photo) VALUES (?,?,?,?,?,?,?)');
+                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $now, $photo]);
                     $id = (int) $pdo->lastInsertId();
                 } else {
-                    $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, active=?, updated_at=?, photo=? WHERE id=?');
-                    $statement->execute([$name, $biography, !empty($input['active']) ? 1 : 0, $now, $photo, $id]);
+                    $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, monthly_salary=?, active=?, updated_at=?, photo=? WHERE id=?');
+                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $photo, $id]);
                     if ($statement->rowCount() !== 1 && !self::staffExists($id, $pdo)) {
                         throw new InvalidArgumentException('Team member not found');
                     }
