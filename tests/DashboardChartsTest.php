@@ -132,4 +132,12 @@ function test_dashboard_charts_empty_state_is_stable(): void
     $singleServiceHtml = (string) ob_get_clean();
     assert_contains('Only Treatment', $singleServiceHtml, 'single treatment ranking renders');
     assert_contains('width:100.00%', $singleServiceHtml, 'single treatment receives full bar width');
+
+    $charts = DashboardCharts::fromRows([], [], $today, false);
+    ob_start();
+    include APP_ROOT . '/templates/admin/dashboard-charts.php';
+    $pendingSetupHtml = (string) ob_get_clean();
+    assert_contains('Appointment activity', $pendingSetupHtml, 'operational charts survive missing Finance setup');
+    assert_contains('Finance charts are not connected yet', $pendingSetupHtml, 'administrator sees Finance setup guidance');
+    assert_contains('Existing appointment records are not affected', $pendingSetupHtml, 'setup message explains booking safety');
 }

@@ -70,7 +70,8 @@ final class PaystackPayment
 
     public static function settle(string $reference, array $data): string
     {
-        return Database::transaction(function (PDO $pdo) use ($reference, $data): string {
+        $bookingId = null;
+        $state = Database::transaction(function (PDO $pdo) use ($reference, $data, &$bookingId): string {
             $query = $pdo->prepare('SELECT * FROM paystack_payments WHERE reference=?' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : ''));
             $query->execute([$reference]);
             $payment = $query->fetch();
@@ -91,7 +92,13 @@ final class PaystackPayment
             }
             $pdo->prepare("INSERT INTO booking_events (booking_id,actor_type,admin_id,event_type,details,created_at) VALUES (?,'paystack',NULL,'payment_verified',?,?)")
                 ->execute([$booking['id'],json_encode(['reference'=>$reference,'amount_subunit'=>(int)$payment['amount_subunit'],'mode'=>$payment['mode'],'review_required'=>$review],JSON_THROW_ON_ERROR),gmdate('Y-m-d H:i:s')]);
+            if ($state === 'paid') {
+                SmsNotifications::schedulePaymentConfirmation($booking, $pdo);
+                $bookingId = (int) $booking['id'];
+            }
             return $state;
         });
+        if ($state === 'paid' && $bookingId !== null) { SmsNotifications::dispatchPaymentConfirmation($bookingId); }
+        return $state;
     }
 }

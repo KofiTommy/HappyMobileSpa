@@ -205,3 +205,45 @@ function test_paystack_checkout_auto_starts_only_after_booking(): void
     assert_contains('mobile money app or phone prompt', $template, 'customer knows where to approve the wallet payment');
     assert_contains('requestSubmit()', $script, 'browser performs native form submission to hosted checkout');
 }
+
+function test_payment_confirmation_sms_waits_for_verification_and_never_duplicates(): void
+{
+    $booking = paystack_fixture();
+    $requests = [];
+    PaystackPayment::start($booking['id'], paystack_fake_client($requests), paystack_test_config());
+    $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
+    $data = paystack_success($payment);
+    $countReceipts = fn (): int => (int) Database::connection()->query("SELECT COUNT(*) FROM sms_notifications WHERE kind='payment_confirmation'")->fetchColumn();
+
+    assert_same('pending', PaystackPayment::settle($payment['reference'], array_replace($data, ['status'=>'pending'])), 'pending payment remains pending');
+    assert_same(0, $countReceipts(), 'pending payment queues no receipt');
+    assert_same('paid', PaystackPayment::settle($payment['reference'], $data), 'verified payment succeeds');
+    assert_same(1, $countReceipts(), 'verified payment queues one receipt');
+    assert_same('paid', PaystackPayment::settle($payment['reference'], $data), 'repeated verification is harmless');
+    assert_same(1, $countReceipts(), 'repeated verification does not duplicate receipt');
+
+    $messages = [];
+    $now = new DateTimeImmutable('now', new DateTimeZone('UTC'));
+    $sender = function (string $phone, string $body) use (&$messages): array {
+        $messages[] = [$phone, $body];
+        return ['state'=>'submitted'];
+    };
+    assert_same(1, SmsNotifications::process($sender, $now), 'payment receipt submitted');
+    assert_same(0, SmsNotifications::process($sender, $now), 'submitted receipt not repeated');
+    assert_same(1, count($messages), 'exactly one payment SMS sent');
+    assert_contains('Payment received: GHS 350.00', $messages[0][1], 'verified amount included');
+    assert_contains('Swedish Massage', $messages[0][1], 'service included');
+    assert_contains('SPA-MANAGE01', $messages[0][1], 'booking reference included');
+}
+
+function test_payment_confirmation_sms_not_sent_for_review_or_failed_payments(): void
+{
+    $booking = paystack_fixture();
+    $requests = [];
+    PaystackPayment::start($booking['id'], paystack_fake_client($requests), paystack_test_config());
+    $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
+    Booking::setStatus($booking['id'], 'cancelled', 1);
+    assert_same('paid_review', PaystackPayment::settle($payment['reference'], paystack_success($payment)), 'late payment requires review');
+    assert_same(0, (int) Database::connection()->query("SELECT COUNT(*) FROM sms_notifications WHERE kind='payment_confirmation'")->fetchColumn(), 'review payment sends no success receipt');
+    assert_same(0, SmsNotifications::process(fn () => throw new RuntimeException('Review receipt must not send')), 'no review receipt is processable');
+}

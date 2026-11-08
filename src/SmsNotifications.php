@@ -23,15 +23,29 @@ final class SmsNotifications
         }
     }
 
+    public static function schedulePaymentConfirmation(array $booking, PDO $pdo, ?DateTimeImmutable $now = null): void
+    {
+        if ($booking['status'] !== 'confirmed') { return; }
+        $now ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $sql = 'INSERT INTO sms_notifications (booking_id,kind,slot_start,due_at,state,attempts,created_at) VALUES (?,\'payment_confirmation\',?,?,\'pending\',0,?)';
+        $sql .= $driver === 'sqlite' ? ' ON CONFLICT(booking_id,kind,slot_start) DO NOTHING' : ' ON DUPLICATE KEY UPDATE id=id';
+        $pdo->prepare($sql)->execute([$booking['id'], $booking['slot_start'], $now->format('Y-m-d H:i:s'), $now->format('Y-m-d H:i:s')]);
+    }
+
     public static function text(array $booking, string $kind): string
     {
         $date = (new DateTimeImmutable($booking['slot_start'], new DateTimeZone('UTC')))->setTimezone(business_timezone());
+        $appointment = $booking['service_name'] . ' on ' . $date->format('d M Y') . ' at ' . $date->format('g:i A') . ' (Ghana time)';
+        if ($kind === 'payment_confirmation') {
+            return 'Happy Mobile Spa: Payment received: GHS ' . number_format((float) $booking['price'], 2) . ' for ' . $appointment . '. Ref ' . $booking['reference'] . '. Thank you.';
+        }
         $prefix = $kind === 'reminder' ? 'Reminder' : 'Booking confirmed';
         $payment = ($booking['payment_status'] ?? 'unpaid') === 'paid' ? ' Payment recorded.' : (Paystack::ready() ? ' Payment pending.' : ' Payment at spa.');
-        return 'Happy Mobile Spa: ' . $prefix . '. ' . $booking['service_name'] . ' on ' . $date->format('d M Y') . ' at ' . $date->format('g:i A') . ' (Ghana time). Ref ' . $booking['reference'] . '.' . $payment;
+        return 'Happy Mobile Spa: ' . $prefix . '. ' . $appointment . '. Ref ' . $booking['reference'] . '.' . $payment;
     }
 
-    public static function process(?callable $sender = null, ?DateTimeImmutable $now = null, ?int $bookingId = null): int
+    public static function process(?callable $sender = null, ?DateTimeImmutable $now = null, ?int $bookingId = null, ?string $kind = null): int
     {
         if ($sender === null && !SmsConfig::ready()) { return 0; }
         $now ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));
@@ -42,7 +56,13 @@ final class SmsNotifications
             ->execute([$now->modify('-10 minutes')->format('Y-m-d H:i:s')]);
         $sql = "SELECT * FROM sms_notifications WHERE state='pending' AND due_at<=? AND (next_attempt_at IS NULL OR next_attempt_at<=?)";
         $params = [$timestamp, $timestamp];
-        if ($bookingId !== null) { $sql .= " AND booking_id=? AND kind='confirmation'"; $params[] = $bookingId; }
+        if ($bookingId !== null) {
+            $kind ??= 'confirmation';
+            if (!in_array($kind, ['confirmation', 'payment_confirmation'], true)) { throw new InvalidArgumentException('Invalid immediate SMS type.'); }
+            $sql .= ' AND booking_id=? AND kind=?';
+            $params[] = $bookingId;
+            $params[] = $kind;
+        }
         $query = $pdo->prepare($sql . ' ORDER BY due_at,id LIMIT 25');
         $query->execute($params);
         $sent = 0;
@@ -80,6 +100,12 @@ final class SmsNotifications
     {
         try { self::process(null, null, $id); }
         catch (Throwable $error) { error_log('SMS confirmation deferred to background worker.'); }
+    }
+
+    public static function dispatchPaymentConfirmation(int $id): void
+    {
+        try { self::process(null, null, $id, 'payment_confirmation'); }
+        catch (Throwable $error) { error_log('SMS payment confirmation deferred to background worker.'); }
     }
 
     public static function backfillReminders(): void

@@ -18,10 +18,20 @@ final class DashboardCharts
             $queryStart->setTimezone($utc)->format('Y-m-d H:i:s'),
             $monthEnd->setTimezone($utc)->format('Y-m-d H:i:s'),
         ]);
-        return self::fromRows($query->fetchAll(), $includeFinance ? Finance::cashTrend(6) : [], $today);
+        $cashTrend = [];
+        $financeReady = false;
+        if ($includeFinance) {
+            try {
+                $cashTrend = Finance::cashTrend(6);
+                $financeReady = true;
+            } catch (PDOException $error) {
+                if ($error->getCode() !== '42S02') { throw $error; }
+            }
+        }
+        return self::fromRows($query->fetchAll(), $cashTrend, $today, $financeReady);
     }
 
-    public static function fromRows(array $bookings, array $cashTrend, DateTimeImmutable $today): array
+    public static function fromRows(array $bookings, array $cashTrend, DateTimeImmutable $today, bool $financeReady = true): array
     {
         $today = $today->setTimezone(business_timezone());
         $month = $today->format('Y-m');
@@ -67,6 +77,7 @@ final class DashboardCharts
             'status_total' => array_sum($statuses),
             'services' => $services,
             'cash' => $cashTrend,
+            'finance_ready' => $financeReady,
             'month_label' => $today->format('F Y'),
         ];
     }

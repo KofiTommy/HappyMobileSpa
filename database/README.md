@@ -144,7 +144,7 @@ Money received after cancellation, completion, a price change, or another record
 
 Existing installations: back up the database, then run `C:/xampp/php/php.exe database/migrate_finance.php` once. The migration is safe to rerun and preserves existing bookings and staff. Fresh installations include the Finance tables in `schema.sql`.
 
-For Hostinger hosting without command-line access, back up the database and upload the application changes first. Open the spa database in **hPanel → phpMyAdmin**, select **Import**, and import `database/migrate_finance_hostinger.sql` once. This Hostinger file intentionally adds `staff.monthly_salary`; do not run it if that column already exists or on a fresh installation created from the updated `schema.sql`.
+For Hostinger hosting without command-line access, back up the database and upload the application changes first. Open the spa database in **hPanel → phpMyAdmin**, select **Import**, and import `database/migrate_finance_hostinger.sql`. On Hostinger/MariaDB the file uses `ADD COLUMN IF NOT EXISTS` and `CREATE TABLE IF NOT EXISTS`, so it is safe to rerun after a partial setup; existing columns, tables, bookings, staff, and Finance records are preserved.
 
 Open **Admin → Finance & budgets**. Set each worker’s usual monthly salary under **Team & schedules**, then generate pending monthly salary records without overwriting existing ones. Edit records to add bonuses, deductions, paid dates, payment methods, and references. Record other expenses with optional JPG, PNG, WebP, or PDF receipts up to 5 MB. Receipts are stored under `storage/receipts`, blocked from direct web access, and streamed only to signed-in administrators; include them in private backups and allow PHP to write to that folder.
 

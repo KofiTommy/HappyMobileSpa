@@ -96,6 +96,12 @@
                 </div>
                 <p class="chart-footnote">Only actual payments and paid Finance records are included. Pending values are excluded.</p>
             </section>
+        <?php elseif ($admin['role'] === 'admin' && empty($charts['finance_ready'])): ?>
+            <section class="admin-section manager-chart-card finance-setup-card">
+                <p class="admin-eyebrow">FINANCE SETUP REQUIRED</p>
+                <h3>Finance charts are not connected yet</h3>
+                <p>Your booking dashboard is still available. Run the Finance database migration to enable income, salary, and expense charts. Existing appointment records are not affected.</p>
+            </section>
         <?php endif; ?>
 
         <section class="admin-section manager-chart-card">

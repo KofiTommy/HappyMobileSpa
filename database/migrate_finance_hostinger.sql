@@ -1,8 +1,8 @@
--- One-time upgrade for an existing Happy Mobile Spa database.
+-- Finance upgrade for an existing Happy Mobile Spa MariaDB database.
 -- Back up first. Run in phpMyAdmin with the spa database selected.
--- Do not run on a fresh installation created from schema.sql, or if staff.monthly_salary already exists.
+-- Safe to rerun: existing columns, tables, bookings, staff, and finance records are preserved.
 
-ALTER TABLE staff ADD COLUMN monthly_salary DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER biography;
+ALTER TABLE staff ADD COLUMN IF NOT EXISTS monthly_salary DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER biography;
 
 CREATE TABLE IF NOT EXISTS salary_payments (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
