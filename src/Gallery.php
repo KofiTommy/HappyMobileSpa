@@ -6,6 +6,7 @@ final class Gallery
     public static function images(bool $hero = false): array
     {
         $rows = Database::connection()->query('SELECT * FROM gallery_images WHERE published=1' . ($hero ? ' AND show_in_hero=1' : '') . ' ORDER BY display_order,id')->fetchAll();
+        $rows = array_values(array_filter($rows, static fn (array $row): bool => TeamPhoto::available($row['path'])));
         if ($rows) { return $rows; }
         return self::defaults();
     }

@@ -22,7 +22,13 @@ final class Catalog
         $sql .= ' ORDER BY s.name, s.id';
         $statement = Database::connection()->prepare($sql);
         $statement->execute($params);
-        return $statement->fetchAll();
+        $staff = $statement->fetchAll();
+        foreach ($staff as &$person) {
+            $person['photo_missing'] = $person['photo'] !== null && !TeamPhoto::available($person['photo']);
+            if ($person['photo_missing']) { $person['photo'] = null; }
+        }
+        unset($person);
+        return $staff;
     }
 
     public static function settings(): array
@@ -58,7 +64,10 @@ final class Catalog
         foreach ($staff as &$person) {
             $statement->execute([$person['id']]);
             $person['service_ids'] = array_map('intval', array_column($statement->fetchAll(), 'service_id'));
+            $person['photo_missing'] = $person['photo'] !== null && !TeamPhoto::available($person['photo']);
+            if ($person['photo_missing']) { $person['photo'] = null; }
         }
+        unset($person);
         return $staff;
     }
 

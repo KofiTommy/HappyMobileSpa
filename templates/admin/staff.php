@@ -16,6 +16,7 @@
         <input type="hidden" name="csrf" value="<?= escape(Csrf::token()) ?>"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= $editing['id'] ?? '' ?>">
         <label>Name<input name="name" maxlength="160" required value="<?= escape($editing['name'] ?? '') ?>"></label>
         <label>Usual monthly salary (₵)<input type="number" name="monthly_salary" min="0" max="99999999.99" step="0.01" required value="<?= escape($editing['monthly_salary'] ?? '0.00') ?>"><small class="help-text">Used to prefill monthly salary records in Finance. Enter 0 if this worker is not salaried.</small></label>
+        <?php if (!empty($editing['photo_missing'])): ?><p class="admin-error" role="alert">The current photo file is unavailable on the server. Upload a replacement and save this team member.</p><?php endif; ?>
         <?php if (!empty($editing['photo'])): ?><img class="team-photo-preview" src="../<?= escape($editing['photo']) ?>" alt="Current photo of <?= escape($editing['name']) ?>" width="128" height="128"><label class="check-row"><input type="checkbox" name="remove_photo" value="1"> Remove current photo</label><?php endif; ?>
         <label>Profile picture<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-help"></label>
         <small id="photo-help" class="help-text">JPG, PNG, or WebP. Maximum 2 MB and 4096 × 4096 pixels. Customers see this photo when choosing a therapist. Uploading a new photo replaces the current one.</small>

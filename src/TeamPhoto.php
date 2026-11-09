@@ -23,6 +23,15 @@ final class TeamPhoto
         return $types[$mime];
     }
 
+    public static function available(?string $path): bool
+    {
+        if ($path === null || !preg_match('~^assets/images/(?:[a-z0-9-]+/)*[a-z0-9-]+\.(?:jpg|png|webp)$~D', $path)) {
+            return false;
+        }
+        $file = APP_ROOT . '/' . $path;
+        return is_file($file) && is_readable($file);
+    }
+
     public static function upload(?array $file, string $collection = 'team'): ?string
     {
         if (!in_array($collection, ['team', 'gallery'], true)) { throw new InvalidArgumentException('Invalid photo collection.'); }
@@ -38,8 +47,15 @@ final class TeamPhoto
             throw new DomainException('The photo folder could not be created.');
         }
         $path = 'assets/images/' . $collection . '/' . bin2hex(random_bytes(16)) . '.' . $extension;
-        if (!move_uploaded_file($temporary, APP_ROOT . '/' . $path)) {
+        $destination = APP_ROOT . '/' . $path;
+        if (!move_uploaded_file($temporary, $destination)) {
             throw new DomainException('The photo could not be saved. Please try again.');
+        }
+        @chmod($destination, 0644);
+        clearstatcache(true, $destination);
+        if (!self::available($path)) {
+            @unlink($destination);
+            throw new DomainException('The photo was saved but is not readable by the website. Check the image folder permissions.');
         }
         return $path;
     }
