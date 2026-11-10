@@ -50,7 +50,10 @@ function test_sms_reminder_timing_and_no_duplicate_submission(): void
     assert_same(2, count($messages), 'exactly two sends');
     assert_contains('Reminder', $messages[1][1], 'reminder text');
     $appointmentDate = (new DateTimeImmutable(fixture_datetime('10:00'), new DateTimeZone('UTC')))->format('d M Y');
-    assert_contains($appointmentDate . ' at 10:00 AM (Ghana time)', $messages[1][1], 'local appointment time');
+    assert_contains($appointmentDate . ' at 10:00 AM', $messages[1][1], 'local appointment time');
+    foreach ($messages as $message) {
+        assert_not_contains('Ghana time', $message[1], 'customer SMS omits timezone label');
+    }
     assert_contains('SPA-EXISTING', $messages[0][1], 'reference included');
 }
 

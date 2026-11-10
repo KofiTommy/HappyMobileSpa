@@ -234,6 +234,7 @@ function test_payment_confirmation_sms_waits_for_verification_and_never_duplicat
     assert_contains('Payment received: GHS 350.00', $messages[0][1], 'verified amount included');
     assert_contains('Swedish Massage', $messages[0][1], 'service included');
     assert_contains('SPA-MANAGE01', $messages[0][1], 'booking reference included');
+    assert_not_contains('Ghana time', $messages[0][1], 'payment SMS omits timezone label');
 }
 
 function test_payment_confirmation_sms_not_sent_for_review_or_failed_payments(): void

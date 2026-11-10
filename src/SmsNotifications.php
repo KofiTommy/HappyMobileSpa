@@ -36,7 +36,7 @@ final class SmsNotifications
     public static function text(array $booking, string $kind): string
     {
         $date = (new DateTimeImmutable($booking['slot_start'], new DateTimeZone('UTC')))->setTimezone(business_timezone());
-        $appointment = $booking['service_name'] . ' on ' . $date->format('d M Y') . ' at ' . $date->format('g:i A') . ' (Ghana time)';
+        $appointment = $booking['service_name'] . ' on ' . $date->format('d M Y') . ' at ' . $date->format('g:i A');
         if ($kind === 'payment_confirmation') {
             return 'Happy Mobile Spa: Payment received: GHS ' . number_format((float) $booking['price'], 2) . ' for ' . $appointment . '. Ref ' . $booking['reference'] . '. Thank you.';
         }
