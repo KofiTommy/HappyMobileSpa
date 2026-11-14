@@ -44,3 +44,28 @@ function test_gallery_and_carousel_views_escape_user_content(): void
     assert_contains('multipart/form-data', $html, 'upload form');
     assert_contains('Show in homepage carousel', $html, 'feature control');
 }
+
+function test_uploaded_hero_survives_image_folder_updates(): void
+{
+    seed_test_catalog();
+    $path = 'assets/images/gallery/' . bin2hex(random_bytes(16)) . '.png';
+    $file = APP_ROOT . '/' . $path;
+    $bytes = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a2ioAAAAASUVORK5CYII=');
+    file_put_contents($file, $bytes);
+    try {
+        $pdo = Database::connection();
+        $pdo->prepare('INSERT INTO gallery_images (path,caption,alt_text,published,show_in_hero,display_order) VALUES (?,?,?,1,1,0)')->execute([$path, 'My hero', 'Uploaded hero']);
+        $id = (int) $pdo->lastInsertId();
+        assert_same($path, Gallery::images(true)[0]['path'], 'existing upload backed up');
+        unlink($file);
+        clearstatcache(true, $file);
+        assert_same($path, Gallery::images(true)[0]['path'], 'hero restored after deployment removes file');
+        assert_same($bytes, file_get_contents($file), 'restored image is byte identical');
+        Gallery::manage(['role'=>'admin'], ['action'=>'save', 'id'=>$id, 'caption'=>'Edited', 'alt_text'=>'Edited hero', 'published'=>1, 'show_in_hero'=>1]);
+        assert_same($path, Gallery::images(true)[0]['path'], 'editing keeps uploaded image');
+        Gallery::manage(['role'=>'admin'], ['action'=>'delete', 'id'=>$id]);
+        assert_same(false, TeamPhoto::available($path), 'explicit deletion removes backup too');
+    } finally {
+        TeamPhoto::discard($path);
+    }
+}

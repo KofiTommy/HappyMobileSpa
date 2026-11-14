@@ -29,7 +29,69 @@ final class TeamPhoto
             return false;
         }
         $file = APP_ROOT . '/' . $path;
+        if (self::isUpload($path)) {
+            self::preserve($path);
+        }
         return is_file($file) && is_readable($file);
+    }
+
+    private static function isUpload(string $path): bool
+    {
+        return (bool) preg_match('~^assets/images/(team|gallery)/[a-f0-9]{32}\.(jpg|png|webp)$~D', $path);
+    }
+
+    // The database survives code deployments; image folders may be replaced.
+    private static function photoStore(): PDO
+    {
+        $pdo = Database::connection();
+        static $initialized = null;
+        if ($initialized !== $pdo) {
+            $pdo->exec('CREATE TABLE IF NOT EXISTS uploaded_photos (path VARCHAR(255) PRIMARY KEY, contents MEDIUMBLOB NOT NULL)');
+            $initialized = $pdo;
+        }
+        return $pdo;
+    }
+
+    private static function preserve(string $path): void
+    {
+        $pdo = self::photoStore();
+        $file = APP_ROOT . '/' . $path;
+        $query = $pdo->prepare('SELECT path FROM uploaded_photos WHERE path=?');
+        $query->execute([$path]);
+        $stored = $query->fetchColumn() !== false;
+        if (is_file($file) && is_readable($file)) {
+            if (!$stored) {
+                self::inspect($file);
+                $insert = $pdo->prepare('INSERT INTO uploaded_photos (path,contents) VALUES (?,?)');
+                $insert->bindValue(1, $path);
+                $insert->bindValue(2, file_get_contents($file), PDO::PARAM_LOB);
+                try { $insert->execute(); }
+                catch (PDOException $error) {
+                    // Another request may have backed up this same file first.
+                    $query->execute([$path]);
+                    if ($query->fetchColumn() === false) { throw $error; }
+                }
+            }
+            return;
+        }
+        if (!$stored) { return; }
+        $query = $pdo->prepare('SELECT contents FROM uploaded_photos WHERE path=?');
+        $query->execute([$path]);
+        $contents = $query->fetchColumn();
+        if (is_resource($contents)) { $contents = stream_get_contents($contents); }
+        $directory = dirname($file);
+        if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) { return; }
+        $temporary = tempnam($directory, 'restore-');
+        if ($temporary === false) { return; }
+        try {
+            if (file_put_contents($temporary, $contents) === false) { return; }
+            self::inspect($temporary);
+            @chmod($temporary, 0644);
+            @rename($temporary, $file);
+            clearstatcache(true, $file);
+        } finally {
+            if (is_file($temporary)) { unlink($temporary); }
+        }
     }
 
     public static function upload(?array $file, string $collection = 'team'): ?string
@@ -62,7 +124,8 @@ final class TeamPhoto
 
     public static function discard(?string $path): void
     {
-        if ($path && preg_match('~^assets/images/(team|gallery)/[a-f0-9]{32}\.(jpg|png|webp)$~D', $path)) {
+        if ($path && self::isUpload($path)) {
+            self::photoStore()->prepare('DELETE FROM uploaded_photos WHERE path=?')->execute([$path]);
             $file = APP_ROOT . '/' . $path;
             if (is_file($file)) { unlink($file); }
         }

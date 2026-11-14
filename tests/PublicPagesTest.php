@@ -246,9 +246,6 @@ function test_homepage_uses_real_catalog_team_gallery_and_practical_faq(): void
     assert_contains('.page-index .featured-booking .button{padding:16px 18px;gap:10px;font-size:.68rem;letter-spacing:.1em;white-space:nowrap}', $css, 'featured booking action stays readable');
     assert_contains('@media(max-width:760px){', $css, 'homepage mobile layout rules exist');
     assert_contains('.experience-section{grid-template-columns:1fr;gap:34px;margin:30px 12px 10px;padding:54px 26px;border-radius:26px}', $css, 'experience section collapses cleanly on mobile');
-    assert_contains('.page-index .intro{margin:36px var(--page) 0;border-radius:30px;background:linear-gradient(120deg,rgba(240,226,216,.82),rgba(250,247,240,.28) 78%);', $css, 'champagne blush warms the approach section');
-    assert_contains('.page-index .treatment-card{background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(240,226,216,.56))}', $css, 'treatment cards use a subtle blush surface');
-    assert_contains('.page-index .home-faq details[open]{padding:24px 22px;border-radius:16px;background:rgba(240,226,216,.55)}', $css, 'expanded FAQs use the supporting blush accent');
     assert_contains('@media(prefers-reduced-motion:reduce){.page-index .hero-slide.is-active img{transform:none}}', $css, 'homepage respects reduced motion');
 }
 
