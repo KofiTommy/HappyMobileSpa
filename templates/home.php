@@ -51,27 +51,43 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
     </div>
 </section>
 
+<section class="experience-section" id="experience" aria-labelledby="experience-title">
+    <div class="experience-heading">
+        <p class="eyebrow"><span></span> Your spa experience</p>
+        <h2 id="experience-title">From booking<br>to <em>bliss.</em></h2>
+        <p>A simple, thoughtful experience designed around your comfort from the very first click.</p>
+    </div>
+    <ol class="experience-steps">
+        <li><span>01</span><div><h3>Choose your ritual</h3><p>Explore the treatments, compare durations and prices, and select the experience your body needs.</p></div></li>
+        <li><span>02</span><div><h3>Make it yours</h3><p>Choose an available time and preferred therapist, then share anything that helps us care for you.</p></div></li>
+        <li><span>03</span><div><h3>Take your moment</h3><p>Receive your booking confirmation and leave the rest to us. Your only task is to slow down.</p></div></li>
+    </ol>
+</section>
+
 <section class="treatments section-grid" id="treatments">
     <p class="section-index">02 / TREATMENTS</p>
     <div class="treatment-content">
         <div class="section-heading-row"><h2>Find your ritual.</h2><a class="text-link" href="services.php">View all treatments</a></div>
         <?php if ($featuredService): ?>
+            <?php $featuredImage = $galleryImages[0] ?? ($heroImages[0] ?? null); ?>
             <article class="featured-treatment">
-                <div>
+                <?php if ($featuredImage): ?><a class="featured-treatment-media" href="book.php?service=<?= escape($featuredService['slug']) ?>" aria-label="Book <?= escape($featuredService['name']) ?>"><img src="<?= escape($featuredImage['path']) ?>" alt="<?= escape($featuredImage['alt_text']) ?>" width="1400" height="933" loading="lazy"><span>Featured ritual</span></a><?php endif; ?>
+                <div class="featured-treatment-copy">
                     <p class="featured-label">Featured treatment</p>
                     <h3><?= escape($featuredService['name']) ?></h3>
                     <p><?= escape($featuredService['description']) ?></p>
                 </div>
                 <div class="featured-booking">
                     <p class="service-facts"><span><?= (int) $featuredService['duration_min'] ?> min</span><strong><?= money($featuredService['price']) ?></strong></p>
-                    <a class="button button-ivory" href="book.php?service=<?= escape($featuredService['slug']) ?>">Book this treatment <?= ui_icon('arrow') ?></a>
+                    <a class="button button-ivory" href="book.php?service=<?= escape($featuredService['slug']) ?>">Book treatment <?= ui_icon('arrow') ?></a>
                 </div>
             </article>
         <?php endif; ?>
         <?php if ($services): ?>
             <div class="treatment-cards">
-                <?php foreach (array_slice($services, 0, 6) as $service): ?>
+                <?php foreach (array_slice($services, 0, 6) as $index => $service): ?>
                     <article class="treatment-card">
+                        <span class="treatment-card-number" aria-hidden="true"><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></span>
                         <h3><?= escape($service['name']) ?></h3>
                         <p><?= escape($service['description']) ?></p>
                         <p class="service-facts"><span><?= (int) $service['duration_min'] ?> min</span><strong><?= money($service['price']) ?></strong></p>
@@ -93,19 +109,23 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
         <div class="team-grid">
             <?php foreach ($staff as $person): ?>
                 <article class="team-card">
-                    <?php if ($person['photo'] !== null): ?>
-                        <img src="<?= escape($person['photo']) ?>" alt="<?= escape($person['name']) ?>" width="800" height="1000" loading="lazy">
-                    <?php else: ?>
-                        <?php
-                        $initials = '';
-                        $nameParts = preg_split('/\s+/', trim($person['name'])) ?: [];
-                        foreach (array_slice($nameParts, 0, 2) as $part) {
-                            $initials .= mb_strtoupper(mb_substr($part, 0, 1));
-                        }
-                        ?>
-                        <div class="team-initials" aria-hidden="true"><?= escape($initials) ?></div>
-                    <?php endif; ?>
+                    <div class="team-portrait">
+                        <?php if ($person['photo'] !== null): ?>
+                            <img src="<?= escape($person['photo']) ?>" alt="<?= escape($person['name']) ?>" width="800" height="1000" loading="lazy">
+                        <?php else: ?>
+                            <?php
+                            $initials = '';
+                            $nameParts = preg_split('/\s+/', trim($person['name'])) ?: [];
+                            foreach (array_slice($nameParts, 0, 2) as $part) {
+                                $initials .= mb_strtoupper(mb_substr($part, 0, 1));
+                            }
+                            ?>
+                            <div class="team-initials" aria-hidden="true"><?= escape($initials) ?></div>
+                        <?php endif; ?>
+                        <span>Your therapist</span>
+                    </div>
                     <h3><?= escape($person['name']) ?></h3>
+                    <?php if (!empty($person['biography'])): ?><p><?= escape($person['biography']) ?></p><?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </div>
@@ -119,8 +139,8 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
     <div class="home-gallery-content">
         <div class="section-heading-row"><h2>A glimpse inside.</h2><a class="text-link" href="gallery.php">View gallery</a></div>
         <div class="home-gallery-grid">
-            <?php foreach ($galleryImages as $image): ?>
-                <figure><img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1400" height="933" loading="lazy"></figure>
+            <?php foreach ($galleryImages as $index => $image): ?>
+                <figure><img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1400" height="933" loading="lazy"><figcaption><span><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></span><?= escape($image['caption']) ?></figcaption></figure>
             <?php endforeach; ?>
         </div>
     </div>

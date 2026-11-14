@@ -31,18 +31,27 @@ final class ContactMessage
         Database::connection()->prepare('UPDATE contact_messages SET status=? WHERE id=?')->execute([$status, $id]);
     }
 
-    public static function inbox(string $status, int $page): array
+    public static function inbox(string $status, int $page, string $search = ''): array
     {
         if (!in_array($status, ['', 'new','read','replied','archived'], true)) { $status = ''; }
-        $where = $status === '' ? '' : ' WHERE status=?';
-        $params = $status === '' ? [] : [$status];
-        $count = Database::connection()->prepare('SELECT COUNT(*) FROM contact_messages' . $where);
+        $search = mb_substr(trim($search), 0, 160);
+        $conditions = [];
+        $params = [];
+        if ($status !== '') { $conditions[] = 'status=?'; $params[] = $status; }
+        if ($search !== '') {
+            $conditions[] = '(name LIKE ? OR email LIKE ? OR phone LIKE ? OR subject LIKE ? OR message LIKE ?)';
+            $term = '%' . $search . '%';
+            array_push($params, $term, $term, $term, $term, $term);
+        }
+        $where = $conditions ? ' WHERE ' . implode(' AND ', $conditions) : '';
+        $pdo = Database::connection();
+        $count = $pdo->prepare('SELECT COUNT(*) FROM contact_messages' . $where);
         $count->execute($params);
         $total = (int) $count->fetchColumn();
         $pages = max(1, (int) ceil($total / 20));
         $page = min(max(1, $page), $pages);
-        $query = Database::connection()->prepare('SELECT * FROM contact_messages' . $where . ' ORDER BY created_at DESC,id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
+        $query = $pdo->prepare('SELECT * FROM contact_messages' . $where . ' ORDER BY created_at DESC,id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
         $query->execute($params);
-        return ['messages'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'status'=>$status];
+        return ['messages'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'status'=>$status, 'search'=>$search];
     }
 }

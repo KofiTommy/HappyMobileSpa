@@ -51,3 +51,4 @@ require __DIR__ . '/PaystackTest.php';
 require __DIR__ . '/ReceptionOverviewTest.php';
 require __DIR__ . '/FinanceTest.php';
 require __DIR__ . '/DashboardChartsTest.php';
+require __DIR__ . '/AdminSearchTest.php';

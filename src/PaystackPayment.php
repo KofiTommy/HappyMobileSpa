@@ -16,6 +16,28 @@ final class PaystackPayment
         return $query->fetch() ?: throw new DomainException('Appointment not found.');
     }
 
+    public static function adminList(string $search = '', int $page = 1): array
+    {
+        $search = mb_substr(trim($search), 0, 160);
+        $from = ' FROM paystack_payments p JOIN bookings b ON b.id=p.booking_id JOIN customers c ON c.id=b.customer_id';
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = ' WHERE (p.reference LIKE ? OR b.reference LIKE ? OR c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR p.state LIKE ? OR p.mode LIKE ?)';
+            $term = '%' . $search . '%';
+            $params = array_fill(0, 7, $term);
+        }
+        $pdo = Database::connection();
+        $count = $pdo->prepare('SELECT COUNT(*)' . $from . $where);
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+        $pages = max(1, (int) ceil($total / 20));
+        $page = min(max(1, $page), $pages);
+        $query = $pdo->prepare('SELECT p.*,b.reference AS booking_reference,c.name AS customer_name,c.email AS customer_email' . $from . $where . ' ORDER BY p.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
+        $query->execute($params);
+        return ['payments'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'search'=>$search];
+    }
+
     public static function start(int $id, ?callable $client = null, ?array $config = null): string
     {
         if ($client === null && !Paystack::ready()) { throw new DomainException('Online payments are currently unavailable.'); }

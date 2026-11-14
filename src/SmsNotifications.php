@@ -3,6 +3,28 @@ declare(strict_types=1);
 
 final class SmsNotifications
 {
+    public static function adminList(string $search = '', int $page = 1): array
+    {
+        $search = mb_substr(trim($search), 0, 160);
+        $from = ' FROM sms_notifications n JOIN bookings b ON b.id=n.booking_id JOIN customers c ON c.id=b.customer_id';
+        $where = '';
+        $params = [];
+        if ($search !== '') {
+            $where = ' WHERE (b.reference LIKE ? OR c.name LIKE ? OR c.phone LIKE ? OR n.kind LIKE ? OR n.state LIKE ? OR n.provider_id LIKE ?)';
+            $term = '%' . $search . '%';
+            $params = array_fill(0, 6, $term);
+        }
+        $pdo = Database::connection();
+        $count = $pdo->prepare('SELECT COUNT(*)' . $from . $where);
+        $count->execute($params);
+        $total = (int) $count->fetchColumn();
+        $pages = max(1, (int) ceil($total / 20));
+        $page = min(max(1, $page), $pages);
+        $query = $pdo->prepare('SELECT n.*,b.reference,c.name AS customer_name,c.phone AS customer_phone' . $from . $where . ' ORDER BY n.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
+        $query->execute($params);
+        return ['notifications'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'search'=>$search];
+    }
+
     public static function schedule(array $booking, PDO $pdo, bool $confirmation = true, ?DateTimeImmutable $now = null): void
     {
         $now ??= new DateTimeImmutable('now', new DateTimeZone('UTC'));

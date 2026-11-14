@@ -1,3 +1,7 @@
+<?php
+$listing = $listing ?? ['notifications'=>$notifications, 'total'=>count($notifications), 'page'=>1, 'pages'=>1, 'search'=>''];
+$notifications = $listing['notifications'];
+?>
 <?php if ($error): ?><div class="admin-error" role="alert"><?= escape($error) ?></div><?php endif; ?>
 <?php if (isset($_GET['saved'])): ?><div class="admin-success" role="status">SMS settings saved.</div><?php endif; ?>
 <header class="page-lead">
@@ -15,6 +19,9 @@
 <label class="check-row"><input type="checkbox" name="enabled" value="1" <?= $smsConfig['enabled'] ? 'checked' : '' ?>> Enable SMS notifications</label>
 <button class="admin-button">Save SMS settings</button></form></section>
 <section class="admin-section"><div class="panel-heading"><div><h2>Recent notifications</h2><p>“Submitted” means the provider accepted the message; it does not confirm handset delivery. If a result is unknown, check your provider's history before sending again. Temporary, definite rejections are retried up to three times. Notifications more than one hour late are skipped.</p></div></div>
+<form method="get" class="filter-form"><label class="filter-search">Search notifications<input type="search" name="search" value="<?= escape($listing['search']) ?>" placeholder="Booking reference, client, phone, type or status"></label><button class="admin-button">Search</button><?php if ($listing['search'] !== ''): ?><a class="clear-filter" href="sms.php">Clear</a><?php endif; ?></form>
+<p><?= $listing['total'] ?> matching notifications</p>
 <div class="record-list">
-<?php if (!$notifications): ?><div class="admin-empty"><h3>No notifications queued yet</h3><p>Change the filters or check again after new activity.</p></div><?php endif; ?>
-<?php foreach ($notifications as $notification): ?><article class="management-row record-card"><div><h3><a href="bookings.php?id=<?= $notification['booking_id'] ?>"><?= escape($notification['reference']) ?></a> · <?= escape(ucfirst(str_replace('_', ' ', $notification['kind']))) ?></h3><p><span class="status"><?= escape(ucfirst($notification['state'])) ?></span> · <?= (int) $notification['attempts'] ?> attempts</p><small>Due <?= escape((new DateTimeImmutable($notification['due_at'],new DateTimeZone('UTC')))->setTimezone(business_timezone())->format('j M Y, g:i A')) ?> (Ghana time)</small><?php if ($notification['last_error']): ?><p><?= escape($notification['last_error']) ?></p><?php endif; ?></div></article><?php endforeach; ?></div></section>
+<?php if (!$notifications): ?><div class="admin-empty"><h3><?= $listing['search'] === '' ? 'No notifications queued yet' : 'No matching notifications' ?></h3><p>Change the search or check again after new activity.</p></div><?php endif; ?>
+<?php foreach ($notifications as $notification): ?><article class="management-row record-card"><div><h3><a href="bookings.php?id=<?= $notification['booking_id'] ?>"><?= escape($notification['reference']) ?></a> · <?= escape(ucfirst(str_replace('_', ' ', $notification['kind']))) ?></h3><?php if (isset($notification['customer_name'])): ?><p><?= escape($notification['customer_name']) ?> · <?= escape($notification['customer_phone']) ?></p><?php endif; ?><p><span class="status"><?= escape(ucfirst($notification['state'])) ?></span> · <?= (int) $notification['attempts'] ?> attempts</p><small>Due <?= escape((new DateTimeImmutable($notification['due_at'],new DateTimeZone('UTC')))->setTimezone(business_timezone())->format('j M Y, g:i A')) ?> (Ghana time)</small><?php if ($notification['last_error']): ?><p><?= escape($notification['last_error']) ?></p><?php endif; ?></div></article><?php endforeach; ?></div>
+<?php $pagination = $listing; $paginationParams = ['search'=>$listing['search']]; $paginationLabel = 'Notification pages'; require __DIR__ . '/pagination.php'; ?></section>

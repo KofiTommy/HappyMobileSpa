@@ -215,27 +215,41 @@ function test_homepage_uses_real_catalog_team_gallery_and_practical_faq(): void
         'galleryImages' => $galleryImages, 'featuredService' => $services[0],
     ]);
     assert_contains('Featured treatment', $html, 'display-order feature label');
+    assert_contains('aria-labelledby="experience-title"', $html, 'experience section has an accessible heading');
+    assert_same(3, substr_count($html, '<li><span>0'), 'three booking experience steps');
     $featuredStart = strpos($html, '<article class="featured-treatment">');
     $featuredEnd = strpos($html, '</article>', $featuredStart);
     assert_same(true, $featuredStart !== false && $featuredEnd !== false, 'featured treatment renders');
     $featuredHtml = substr($html, $featuredStart, $featuredEnd - $featuredStart);
     assert_contains('<h3>Deep Tissue Ritual</h3>', $featuredHtml, 'first display-order service is featured');
     assert_contains('href="book.php?service=deep-tissue-ritual"', $featuredHtml, 'featured service booking URL');
+    assert_contains('class="featured-treatment-media"', $featuredHtml, 'featured treatment has an image-led booking action');
+    assert_contains('src="' . $galleryImages[0]['path'] . '"', $featuredHtml, 'featured treatment uses a real gallery image');
     assert_not_contains('<h3>Swedish Massage</h3>', $featuredHtml, 'later service is not featured');
+    assert_same(count($services), substr_count($html, 'class="treatment-card-number"'), 'treatment cards have editorial numbering');
     assert_contains('Ama S.', $html, 'real therapist');
     $galleryStart = strpos($html, '<div class="home-gallery-grid">');
     $galleryEnd = strpos($html, '</div>', $galleryStart);
     assert_same(true, $galleryStart !== false && $galleryEnd !== false, 'homepage gallery renders');
     $galleryHtml = substr($html, $galleryStart, $galleryEnd - $galleryStart);
     assert_same(3, substr_count($galleryHtml, '<figure><img '), 'three homepage gallery figures');
-    foreach ($galleryImages as $image) {
+    foreach ($galleryImages as $index => $image) {
         assert_contains('src="' . $image['path'] . '" alt="' . $image['alt_text'] . '"', $galleryHtml, 'real gallery image and alternative text');
+        assert_contains('<figcaption><span>' . str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) . '</span>' . $image['caption'] . '</figcaption>', $galleryHtml, 'real gallery caption and editorial number');
     }
     assert_contains('How do I book?', $html, 'practical FAQ');
     assert_contains('Real availability', $html, 'factual trust signal');
     assert_not_contains('Most popular', $html, 'no invented popularity');
     $css = file_get_contents(APP_ROOT . '/assets/css/site.css');
     assert_contains('.featured-treatment .featured-label{margin-bottom:22px;', $css, 'featured label spacing outranks paragraph reset');
+    assert_contains('.page-index .featured-booking .service-facts{margin:0 0 28px;color:#C5D3CA}', $css, 'featured duration remains readable on the dark panel');
+    assert_contains('.page-index .featured-booking .button{padding:16px 18px;gap:10px;font-size:.68rem;letter-spacing:.1em;white-space:nowrap}', $css, 'featured booking action stays readable');
+    assert_contains('@media(max-width:760px){', $css, 'homepage mobile layout rules exist');
+    assert_contains('.experience-section{grid-template-columns:1fr;gap:34px;margin:30px 12px 10px;padding:54px 26px;border-radius:26px}', $css, 'experience section collapses cleanly on mobile');
+    assert_contains('.page-index .intro{margin:36px var(--page) 0;border-radius:30px;background:linear-gradient(120deg,rgba(240,226,216,.82),rgba(250,247,240,.28) 78%);', $css, 'champagne blush warms the approach section');
+    assert_contains('.page-index .treatment-card{background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(240,226,216,.56))}', $css, 'treatment cards use a subtle blush surface');
+    assert_contains('.page-index .home-faq details[open]{padding:24px 22px;border-radius:16px;background:rgba(240,226,216,.55)}', $css, 'expanded FAQs use the supporting blush accent');
+    assert_contains('@media(prefers-reduced-motion:reduce){.page-index .hero-slide.is-active img{transform:none}}', $css, 'homepage respects reduced motion');
 }
 
 function test_secondary_pages_have_actions_and_intentional_empty_states(): void
