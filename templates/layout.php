@@ -52,6 +52,14 @@
         </div>
         <div class="footer-links"><a href="manage.php">Manage booking</a><a href="admin/login.php">Staff login</a></div>
     </div>
+    <nav class="footer-social" aria-label="Social media">
+        <a class="social-instagram" href="https://www.instagram.com/happymobilespa/" target="_blank" rel="noopener noreferrer" aria-label="Instagram: @happymobilespa (opens in a new tab)">
+            <?= ui_icon('instagram') ?><span>Instagram <small>@happymobilespa</small></span>
+        </a>
+        <a class="social-tiktok" href="https://www.tiktok.com/@happy_mobile_massage" target="_blank" rel="noopener noreferrer" aria-label="TikTok: @happy_mobile_massage (opens in a new tab)">
+            <?= ui_icon('tiktok') ?><span>TikTok <small>@happy_mobile_massage</small></span>
+        </a>
+    </nav>
     <p class="copyright">&copy; <?= date('Y') ?> Happy Mobile Spa. Time set aside for you.</p>
     <a class="developer-credit" href="https://tokaatechconsult.com" target="_blank" rel="noopener noreferrer">
         <img src="assets/images/tokaa-tech-consult.png" alt="" width="420" height="420">
