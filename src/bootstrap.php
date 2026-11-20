@@ -37,13 +37,5 @@ require __DIR__ . '/view.php';
 date_default_timezone_set('UTC');
 
 if (PHP_SAPI !== 'cli') {
-    session_set_cookie_params([
-        'httponly' => true,
-        'samesite' => 'Lax',
-        'secure' => !empty($_SERVER['HTTPS']),
-    ]);
-    session_start();
-    header('X-Content-Type-Options: nosniff');
-    header('X-Frame-Options: DENY');
-    header('Referrer-Policy: strict-origin-when-cross-origin');
+    Security::boot();
 }

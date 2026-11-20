@@ -11,7 +11,7 @@ final class PaystackPayment
 
     public static function booking(int $id): array
     {
-        $query = Database::connection()->prepare('SELECT b.*,c.email AS customer_email,c.phone AS customer_phone,c.name AS customer_name,s.name AS service_name FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id WHERE b.id=?');
+        $query = Database::connection()->prepare('SELECT b.*,COALESCE(b.contact_email,c.email) AS customer_email,COALESCE(b.contact_phone,c.phone) AS customer_phone,COALESCE(b.contact_name,c.name) AS customer_name,s.name AS service_name FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id WHERE b.id=?');
         $query->execute([$id]);
         return $query->fetch() ?: throw new DomainException('Appointment not found.');
     }
@@ -23,7 +23,7 @@ final class PaystackPayment
         $where = '';
         $params = [];
         if ($search !== '') {
-            $where = ' WHERE (p.reference LIKE ? OR b.reference LIKE ? OR c.name LIKE ? OR c.email LIKE ? OR c.phone LIKE ? OR p.state LIKE ? OR p.mode LIKE ?)';
+            $where = ' WHERE (p.reference LIKE ? OR b.reference LIKE ? OR COALESCE(b.contact_name,c.name) LIKE ? OR COALESCE(b.contact_email,c.email) LIKE ? OR COALESCE(b.contact_phone,c.phone) LIKE ? OR p.state LIKE ? OR p.mode LIKE ?)';
             $term = '%' . $search . '%';
             $params = array_fill(0, 7, $term);
         }
@@ -33,7 +33,7 @@ final class PaystackPayment
         $total = (int) $count->fetchColumn();
         $pages = max(1, (int) ceil($total / 20));
         $page = min(max(1, $page), $pages);
-        $query = $pdo->prepare('SELECT p.*,b.reference AS booking_reference,c.name AS customer_name,c.email AS customer_email' . $from . $where . ' ORDER BY p.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
+        $query = $pdo->prepare('SELECT p.*,b.reference AS booking_reference,COALESCE(b.contact_name,c.name) AS customer_name,COALESCE(b.contact_email,c.email) AS customer_email' . $from . $where . ' ORDER BY p.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
         $query->execute($params);
         return ['payments'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'search'=>$search];
     }

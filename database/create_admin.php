@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require dirname(__DIR__) . '/src/bootstrap.php';
 if (PHP_SAPI !== 'cli') {
     throw new RuntimeException('Run this script from the command line.');
@@ -20,8 +21,8 @@ if ($password === '' && DIRECTORY_SEPARATOR === '\\') {
     shell_exec('stty echo');
     fwrite(STDOUT, PHP_EOL);
 }
-if (strlen($password) < 12) {
-    throw new InvalidArgumentException('Password must contain at least 12 characters.');
+if (strlen($password) < 12 || strlen($password) > 72) {
+    throw new InvalidArgumentException('Password must contain between 12 and 72 bytes.');
 }
 $statement = Database::connection()->prepare('SELECT id FROM admin_users WHERE username = ?');
 $statement->execute([$username]);

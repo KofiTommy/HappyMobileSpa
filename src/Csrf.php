@@ -11,12 +11,12 @@ final class Csrf
             return self::$cliToken ??= bin2hex(random_bytes(32));
         }
         if (session_status() !== PHP_SESSION_ACTIVE) {
-            session_start();
+            if (!session_start()) { throw new RuntimeException('Session storage is unavailable.'); }
         }
         return $_SESSION['csrf'] ??= bin2hex(random_bytes(32));
     }
 
-    public static function verify(?string $token): bool
+    public static function verify(mixed $token): bool
     {
         if (!is_string($token)) {
             return false;

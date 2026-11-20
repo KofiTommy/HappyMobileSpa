@@ -46,7 +46,7 @@ final class Receptionists
             $pdo->prepare("UPDATE admin_users SET password_hash=?, updated_at=? WHERE id=? AND role='receptionist'")
                 ->execute([password_hash($password, PASSWORD_DEFAULT), $now, $id]);
         } elseif ($action === 'active') {
-            $pdo->prepare("UPDATE admin_users SET active=?, updated_at=? WHERE id=? AND role='receptionist'")
+            $pdo->prepare("UPDATE admin_users SET active=?, updated_at=?, session_version=session_version+1 WHERE id=? AND role='receptionist'")
                 ->execute([($input['active'] ?? '') === '1' ? 1 : 0, $now, $id]);
         } else {
             throw new InvalidArgumentException('Choose a valid account action.');

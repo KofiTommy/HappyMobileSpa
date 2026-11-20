@@ -21,13 +21,15 @@ if (form) {
     progress.forEach((item, i) => {
       item.classList.toggle('is-active', i === index);
       item.classList.toggle('is-complete', i < index);
+      if (i === index) item.setAttribute('aria-current', 'step');
+      else item.removeAttribute('aria-current');
     });
     alert.textContent = '';
     if (index === 3) updateReview();
-    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (moveFocus) form.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'start' });
     if (moveFocus) { steps[index].querySelector('legend')?.focus({ preventScroll: true }); }
   };
-  const validStep = () => {
+  const validStep = (report = true) => {
     const wantsMobileMoney = form.querySelector('[name="payment_choice"]:checked')?.value === 'mobile_money';
     form.elements.email.required = wantsMobileMoney;
     if (current === 3 && wantsMobileMoney) {
@@ -46,12 +48,18 @@ if (form) {
     }
     const fields = [...steps[current].querySelectorAll('input,select,textarea')];
     for (const field of fields) {
-      if (!field.checkValidity()) { field.reportValidity(); return false; }
+      if (!field.checkValidity()) { if (report) field.reportValidity(); return false; }
     }
     return true;
   };
   form.querySelectorAll('[data-next]').forEach(button => button.addEventListener('click', () => { if (validStep()) showStep(Math.min(3, current + 1), true); }));
   form.querySelectorAll('[data-back]').forEach(button => button.addEventListener('click', () => showStep(Math.max(0, current - 1), true)));
+  const advance = () => { if (validStep()) showStep(Math.min(3, current + 1), true); };
+  // Keep typing predictable: Enter advances a step, while textarea keeps newlines.
+  form.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' || event.isComposing || event.target.tagName !== 'INPUT' || ['radio', 'checkbox', 'date'].includes(event.target.type)) return;
+    if (current < 3) { event.preventDefault(); advance(); }
+  });
 
   const selectedService = () => serviceInputs.find(input => input.checked);
   const syncTherapistCards = () => {
@@ -88,6 +96,7 @@ if (form) {
       button.addEventListener('click', () => {
         staffSelect.value = String(person.id);
         staffSelect.dispatchEvent(new Event('change'));
+        if (current === 0) advance();
       });
       therapistCards.append(button);
     });
@@ -130,8 +139,14 @@ if (form) {
     text.textContent = slot.label;
     const staff = document.createElement('small'); staff.textContent = slot.staff_name;
     text.append(staff); label.append(input, text); container.append(label);
-    input.addEventListener('change', event => { startInput.value = event.target.value; updateSummary(); });
   };
+  // Delegation also handles times rendered by the server after a validation error.
+  slots.addEventListener('change', event => {
+    if (!event.target.matches('input[name="slot_choice"]')) return;
+    startInput.value = event.target.value;
+    updateSummary();
+    if (current === 1) advance();
+  });
   const loadSlots = async () => {
     controller?.abort();
     startInput.value = '';
@@ -172,6 +187,9 @@ if (form) {
   };
   dateInput.addEventListener('change', () => { loadSlots(); updateSummary(); });
   staffSelect.addEventListener('change', () => { syncTherapistCards(); loadSlots(); updateSummary(); });
+  staffSelect.addEventListener('change', event => {
+    if (event.isTrusted && current === 0) advance();
+  });
   serviceInputs.forEach(input => input.addEventListener('change', () => {
     startInput.value = '';
     staffSelect.value = '';
@@ -180,6 +198,9 @@ if (form) {
     slotStatus.textContent = dateInput.value ? 'Checking actual availability…' : 'Select a date to see available times.';
     if (dateInput.value) loadSlots();
     updateSummary();
+    if (current === 0) {
+      therapistCards.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth', block: 'center' });
+    }
   }));
 
   const updateReview = () => {
@@ -206,12 +227,19 @@ if (form) {
     });
   };
   form.addEventListener('submit', event => {
+    if (current < 3) { event.preventDefault(); advance(); return; }
+    // Recheck earlier steps before committing, including when Enter is used.
+    for (let index = 0; index < 3; index++) {
+      current = index;
+      if (!validStep(false)) { event.preventDefault(); showStep(index, true); validStep(); return; }
+    }
+    current = 3;
     if (!validStep()) { event.preventDefault(); return; }
     const submit = form.querySelector('[data-step="3"] [type="submit"]');
     submit.disabled = true; submit.textContent = 'Confirming…';
   });
   refreshStaffOptions();
-  if (dateInput.value) { loadSlots(); }
+  if (dateInput.value && !slots.querySelector('input[name="slot_choice"]')) { loadSlots(); }
   updateSummary();
   showStep(0);
 }

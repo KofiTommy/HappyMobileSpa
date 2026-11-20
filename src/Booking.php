@@ -72,13 +72,14 @@ final class Booking
             $policy = self::settings($pdo)['cancellation_policy'] ?? 'Contact the spa before changing your appointment.';
             $now = gmdate('Y-m-d H:i:s');
             $statement = $pdo->prepare(
-                'INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at)
-                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+                'INSERT INTO bookings (reference,customer_id,service_id,staff_id,slot_start,slot_end,price,status,payment_method,payment_status,notes,accepted_policy,created_at,updated_at,contact_name,contact_phone,contact_email)
+                 VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
             );
             $statement->execute([
                 $reference, $customerId, $data['service_id'], $staffId,
                 $start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s'),
                 $service['price'], $options['status'], 'pay_at_spa', $options['payment_status'], $data['notes'], $policy, $now, $now,
+                $data['name'], $data['phone'], $data['email'],
             ]);
             $bookingId = (int) $pdo->lastInsertId();
             $details = ['reference' => $reference];
@@ -99,7 +100,7 @@ final class Booking
         $phone = self::phone($phone);
         $pdo = Database::connection();
         $statement = $pdo->prepare(
-            'SELECT b.id, b.reference, c.phone FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE b.reference = ?'
+            'SELECT b.id, b.reference, COALESCE(b.contact_phone,c.phone) AS phone FROM bookings b JOIN customers c ON c.id = b.customer_id WHERE b.reference = ?'
         );
         $statement->execute([$reference]);
         $booking = $statement->fetch();
@@ -116,6 +117,7 @@ final class Booking
             throw new InvalidArgumentException('Choose a valid appointment time');
         }
         $updated = Database::transaction(function (PDO $pdo) use ($id, $parsed): array {
+            self::lockBooking($id, $pdo);
             $booking = self::read($id, $pdo);
             self::assertCustomerChange($booking, $pdo);
             self::lockStaff((int) $booking['staff_id'], $pdo);
@@ -137,6 +139,7 @@ final class Booking
     public static function cancelForCustomer(int $id): void
     {
         Database::transaction(function (PDO $pdo) use ($id): void {
+            self::lockBooking($id, $pdo);
             $booking = self::read($id, $pdo);
             self::assertCustomerChange($booking, $pdo);
             $statement = $pdo->prepare('UPDATE bookings SET status = \'cancelled\', updated_at = ? WHERE id = ?');
@@ -162,7 +165,7 @@ final class Booking
     public static function adminList(array $filters = []): array
     {
         $pdo = Database::connection();
-        $sql = 'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
+        $sql = 'SELECT b.*, COALESCE(b.contact_name,c.name) AS customer_name, COALESCE(b.contact_phone,c.phone) AS customer_phone, COALESCE(b.contact_email,c.email) AS customer_email,
                        s.name AS service_name, s.duration_min, st.name AS staff_name,
                        (SELECT MIN(be.created_at) FROM booking_events be WHERE be.booking_id=b.id AND be.event_type=\'checked_in\') AS checked_in_at
                 FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id
@@ -179,7 +182,7 @@ final class Booking
         if (!empty($filters['status'])) { $sql .= ' AND b.status = ?'; $params[] = $filters['status']; }
         if (!empty($filters['staff_id'])) { $sql .= ' AND b.staff_id = ?'; $params[] = (int) $filters['staff_id']; }
         if (!empty($filters['search'])) {
-            $sql .= ' AND (b.reference LIKE ? OR c.name LIKE ? OR c.phone LIKE ?)';
+            $sql .= ' AND (b.reference LIKE ? OR COALESCE(b.contact_name,c.name) LIKE ? OR COALESCE(b.contact_phone,c.phone) LIKE ?)';
             $term = '%' . $filters['search'] . '%';
             array_push($params, $term, $term, $term);
         }
@@ -196,6 +199,8 @@ final class Booking
     public static function setStatus(int $id, string $status, int $adminId): void
     {
         Database::transaction(function (PDO $pdo) use ($id, $status, $adminId): void {
+            self::assertStaff($adminId, $pdo);
+            self::lockBooking($id, $pdo);
             $booking = self::read($id, $pdo);
             $allowed = [
                 'pending' => ['confirmed', 'cancelled'],
@@ -216,6 +221,7 @@ final class Booking
     public static function checkIn(int $id, int $userId): void
     {
         Database::transaction(function (PDO $pdo) use ($id, $userId): void {
+            self::assertStaff($userId, $pdo);
             $sql = 'SELECT id FROM bookings WHERE id = ?';
             if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql') { $sql .= ' FOR UPDATE'; }
             $statement = $pdo->prepare($sql);
@@ -238,6 +244,7 @@ final class Booking
             throw new InvalidArgumentException('Invalid payment status');
         }
         Database::transaction(function (PDO $pdo) use ($id, $status, $adminId): void {
+            self::assertStaff($adminId, $pdo);
             $lock = $pdo->prepare('SELECT id FROM bookings WHERE id=?' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : ''));
             $lock->execute([$id]);
             $booking = self::read($id, $pdo);
@@ -281,7 +288,7 @@ final class Booking
         if (mb_strlen($data['name']) < 2 || mb_strlen($data['name']) > 160) {
             throw new InvalidArgumentException('Enter your full name');
         }
-        if ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        if (strlen($data['email']) > 190 || ($data['email'] !== '' && !filter_var($data['email'], FILTER_VALIDATE_EMAIL))) {
             throw new InvalidArgumentException('Enter a valid email address');
         }
         if (mb_strlen($data['notes']) > 1000) {
@@ -318,6 +325,19 @@ final class Booking
         }
     }
 
+    private static function assertStaff(int $id, PDO $pdo): void
+    {
+        $query = $pdo->prepare("SELECT id FROM admin_users WHERE id=? AND active=1 AND role IN ('admin','receptionist')");
+        $query->execute([$id]);
+        if (!$query->fetch()) { throw new DomainException('Active staff access required.'); }
+    }
+
+    private static function lockBooking(int $id, PDO $pdo): void
+    {
+        $query = $pdo->prepare('SELECT id FROM bookings WHERE id=?' . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'mysql' ? ' FOR UPDATE' : ''));
+        $query->execute([$id]);
+    }
+
     private static function service(int $serviceId, PDO $pdo): array
     {
         $statement = $pdo->prepare('SELECT * FROM services WHERE id = ? AND active = 1 AND archived_at IS NULL');
@@ -346,8 +366,8 @@ final class Booking
         $existing = $statement->fetch();
         $now = gmdate('Y-m-d H:i:s');
         if ($existing) {
-            $statement = $pdo->prepare('UPDATE customers SET name = ?, email = ?, updated_at = ? WHERE id = ?');
-            $statement->execute([$data['name'], $data['email'] ?: null, $now, $existing['id']]);
+            // A phone number alone does not authorize changing a customer profile.
+            // Each booking keeps the contact details supplied for that appointment.
             return (int) $existing['id'];
         }
         $statement = $pdo->prepare('INSERT INTO customers (phone,name,email,created_at,updated_at) VALUES (?,?,?,?,?)');
@@ -366,7 +386,7 @@ final class Booking
     private static function read(int $bookingId, PDO $pdo): array
     {
         $statement = $pdo->prepare(
-            'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
+            'SELECT b.*, COALESCE(b.contact_name,c.name) AS customer_name, COALESCE(b.contact_phone,c.phone) AS customer_phone, COALESCE(b.contact_email,c.email) AS customer_email,
                     s.name AS service_name, s.duration_min, st.name AS staff_name,
                     (SELECT be.actor_type FROM booking_events be WHERE be.booking_id=b.id ORDER BY be.id DESC LIMIT 1) AS last_event_actor,
                     (SELECT be.admin_id FROM booking_events be WHERE be.booking_id=b.id ORDER BY be.id DESC LIMIT 1) AS last_event_admin_id

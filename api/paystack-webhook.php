@@ -2,7 +2,8 @@
 declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit; }
-$raw = (string) file_get_contents('php://input');
+if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 1048576) { http_response_code(413); exit; }
+$raw = (string) file_get_contents('php://input', false, null, 0, 1048577);
 if (strlen($raw) > 1048576) { http_response_code(413); exit; }
 $config = Paystack::config();
 if (!Paystack::validSignature($raw, (string) ($_SERVER['HTTP_X_PAYSTACK_SIGNATURE'] ?? ''), $config['secret_key'])) { http_response_code(401); exit; }

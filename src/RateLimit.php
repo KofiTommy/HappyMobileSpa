@@ -7,31 +7,24 @@ final class RateLimit
     {
         $pdo = Database::connection();
         $hash = hash('sha256', $key);
+        if ($max < 1 || $seconds < 1) { throw new InvalidArgumentException('Invalid rate limit.'); }
         $now = gmdate('Y-m-d H:i:s');
-        $statement = $pdo->prepare('SELECT * FROM rate_limits WHERE action = ? AND key_hash = ?');
+        $cutoff = gmdate('Y-m-d H:i:s', time() - $seconds);
+        $conflict = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite'
+            ? 'ON CONFLICT(action,key_hash) DO UPDATE SET' : 'ON DUPLICATE KEY UPDATE';
+        // Increment in the database: concurrent requests must not lose attempts.
+        $sql = 'INSERT INTO rate_limits (action,key_hash,attempts,window_start,blocked_until) VALUES (?,?,1,?,NULL) '
+            . $conflict . ' attempts=CASE WHEN window_start<=? THEN 1 WHEN attempts<? THEN attempts+1 ELSE attempts END,'
+            . 'window_start=CASE WHEN window_start<=? THEN ? ELSE window_start END,blocked_until=NULL';
+        $pdo->prepare($sql)->execute([$action, $hash, $now, $cutoff, $max + 1, $cutoff, $now]);
+        $statement = $pdo->prepare('SELECT attempts FROM rate_limits WHERE action=? AND key_hash=?');
         $statement->execute([$action, $hash]);
-        $record = $statement->fetch();
-        if ($record && $record['blocked_until'] && $record['blocked_until'] > $now) {
-            throw new DomainException('Too many attempts. Please try again later.');
-        }
-        if (!$record || $record['window_start'] <= gmdate('Y-m-d H:i:s', time() - $seconds)) {
-            if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
-                $sql = 'INSERT INTO rate_limits (action,key_hash,attempts,window_start,blocked_until) VALUES (?,?,1,?,NULL)
-                        ON CONFLICT(action,key_hash) DO UPDATE SET attempts=1,window_start=excluded.window_start,blocked_until=NULL';
-            } else {
-                $sql = 'INSERT INTO rate_limits (action,key_hash,attempts,window_start,blocked_until) VALUES (?,?,1,?,NULL)
-                        ON DUPLICATE KEY UPDATE attempts = 1, window_start = VALUES(window_start), blocked_until = NULL';
+        if ((int) $statement->fetchColumn() > $max) {
+            if (PHP_SAPI !== 'cli') {
+                http_response_code(429);
+                header('Retry-After: ' . $seconds);
             }
-            $statement = $pdo->prepare($sql);
-            $statement->execute([$action, $hash, $now]);
-            return;
-        }
-        $attempts = (int) $record['attempts'] + 1;
-        $blockedUntil = $attempts > $max ? gmdate('Y-m-d H:i:s', time() + $seconds) : null;
-        $statement = $pdo->prepare('UPDATE rate_limits SET attempts = ?, blocked_until = ? WHERE id = ?');
-        $statement->execute([$attempts, $blockedUntil, $record['id']]);
-        if ($attempts > $max) {
-            throw new DomainException('Too many attempts. Please try again later.');
+            throw new RateLimitException('Too many attempts. Please try again later.');
         }
     }
 }

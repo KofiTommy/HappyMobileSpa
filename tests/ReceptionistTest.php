@@ -44,6 +44,7 @@ function test_reception_check_in_preserves_status_and_records_actor(): void
     Booking::setStatus($booking['id'], 'completed', $id);
     assert_throws(fn () => Booking::checkIn($booking['id'], $id), 'Only confirmed');
     $booking = seed_confirmed_booking('+48 hours');
+    $id = seed_admin('reception', password_hash('reception password long', PASSWORD_DEFAULT));
     assert_throws(fn () => Booking::checkIn($booking['id'], $id), 'for today');
 }
 

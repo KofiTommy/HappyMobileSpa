@@ -6,7 +6,7 @@ final class Paystack
     public static function config(): array
     {
         $path = APP_ROOT . '/config/paystack.local.php';
-        return (is_file($path) ? require $path : []) + ['enabled'=>false,'secret_key'=>'','site_url'=>''];
+        return (PrivateConfig::load('paystack') ?? (is_file($path) ? require $path : [])) + ['enabled'=>false,'secret_key'=>'','site_url'=>''];
     }
 
     public static function ready(): bool
@@ -30,12 +30,7 @@ final class Paystack
             throw new InvalidArgumentException('Enter your public HTTPS website URL, including any project subfolder. HTTP localhost is allowed with a test key only.');
         }
         if ($config['enabled'] && $config['secret_key'] === '') { throw new InvalidArgumentException('Enter your Paystack secret key before enabling payments.'); }
-        $temporary = tempnam(APP_ROOT . '/config', 'paystack-');
-        try {
-            if (!$temporary || !rename($temporary, $temporary . '.php')) { throw new DomainException('Could not save Paystack settings.'); }
-            $temporary .= '.php';
-            if (file_put_contents($temporary, "<?php\nreturn " . var_export($config, true) . ";\n") === false || !rename($temporary, APP_ROOT . '/config/paystack.local.php')) { throw new DomainException('Could not save Paystack settings.'); }
-        } finally { if ($temporary && is_file($temporary)) { unlink($temporary); } }
+        PrivateConfig::save('paystack', $config);
     }
 
     public static function request(string $method, string $path, array $payload = []): array

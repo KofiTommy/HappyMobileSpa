@@ -22,7 +22,7 @@
             <div><dt>Payment</dt><dd><?= $booking['payment_status'] === 'paid' ? 'Paid' : (Paystack::ready() ? 'Unpaid — payable at the spa or by mobile money' : 'Due at the spa') ?></dd></div>
         </dl>
     </div>
-    <div class="confirmation-actions appointment-actions"><?php if (Paystack::ready() && $booking['payment_status'] !== 'paid'): ?><a class="button" href="payment.php?booking=<?= escape($booking['reference']) ?>">Pay by mobile money</a><?php endif; ?><a class="button" href="manage.php?reference=<?= rawurlencode($booking['reference']) ?>">Manage booking</a><button class="button-back" type="button" onclick="window.print()">Print confirmation</button></div>
+    <div class="confirmation-actions appointment-actions"><?php if (Paystack::ready() && $booking['payment_status'] !== 'paid'): ?><a class="button" href="payment.php?booking=<?= escape($booking['reference']) ?>">Pay by mobile money</a><?php endif; ?><a class="button" href="manage.php?reference=<?= rawurlencode($booking['reference']) ?>">Manage booking</a><button class="button-back" type="button" data-print>Print confirmation</button></div>
     <p class="confirmation-policy"><?= escape($booking['accepted_policy']) ?></p>
 <?php endif; ?>
 </section>

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 
 putenv('SPA_DB_DSN=sqlite::memory:');
 putenv('SPA_SMS_DISABLED=1');
@@ -52,3 +53,4 @@ require __DIR__ . '/ReceptionOverviewTest.php';
 require __DIR__ . '/FinanceTest.php';
 require __DIR__ . '/DashboardChartsTest.php';
 require __DIR__ . '/AdminSearchTest.php';
+require __DIR__ . '/SecurityTest.php';

@@ -22,7 +22,8 @@ function test_sms_booking_hooks_and_atomic_queue(): void
     $count = count($jobs);
     assert_throws(fn () => Booking::create($input), 'Slot is no longer available');
     assert_same($count, (int) Database::connection()->query('SELECT COUNT(*) FROM sms_notifications')->fetchColumn(), 'failed booking queues nothing');
-    Booking::setStatus((int) $booking['id'], 'cancelled', 1);
+    $adminId = seed_admin('sms-owner', password_hash('secure test password', PASSWORD_DEFAULT));
+    Booking::setStatus((int) $booking['id'], 'cancelled', $adminId);
     assert_same(0, (int) Database::connection()->query("SELECT COUNT(*) FROM sms_notifications WHERE state='pending'")->fetchColumn(), 'cancellation invalidates queue');
 }
 

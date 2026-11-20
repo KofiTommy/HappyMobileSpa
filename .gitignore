@@ -16,3 +16,5 @@
 
 /storage/receipts/*
 !/storage/receipts/.htaccess
+/storage/private/*
+!/storage/private/.htaccess

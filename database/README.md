@@ -2,11 +2,13 @@
 
 ## Requirements
 
-- XAMPP with PHP 8.1 or newer, MariaDB, and Apache
+- A current, security-patched supported PHP release (preferably 8.4 or newer), MariaDB, and Apache
 - PHP extensions: PDO MySQL, PDO SQLite (for tests), and mbstring
 - Node.js only when using the PHP preview wrapper instead of Apache
 
 The application uses the `happy_mobile_spa` database and `Africa/Accra` as its fixed business timezone. Appointment times are stored in UTC.
+
+Before deploying the security update to an existing installation, follow [the security review and deployment order](../docs/SECURITY.md). In particular, run `php database/migrate_security.php` before publishing the updated booking code. New installations include the required columns and photo backup table in `schema.sql`.
 
 ## First-time setup
 

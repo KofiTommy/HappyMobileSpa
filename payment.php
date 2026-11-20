@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!$booking['customer_email']) {
                 $email = trim((string) ($_POST['email'] ?? ''));
                 if (strlen($email)>190 || !filter_var($email,FILTER_VALIDATE_EMAIL)) { throw new InvalidArgumentException('Enter a valid email address for your payment receipt.'); }
-                Database::connection()->prepare('UPDATE customers SET email=? WHERE id=?')->execute([$email,$booking['customer_id']]);
+                Database::connection()->prepare('UPDATE bookings SET contact_email=? WHERE id=?')->execute([$email,$booking['id']]);
             }
             $url = PaystackPayment::start($id);
             header('Location: ' . $url, true, 303); exit;

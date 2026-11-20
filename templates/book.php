@@ -32,6 +32,7 @@ $availabilityError = $availabilityError ?? '';
                     <?php endforeach; ?>
                     </div>
                     <label class="field-label" for="staff_id">Therapist preference</label>
+                    <p class="booking-step-hint">Choose a therapist below to continue to available times, or choose any available therapist.</p>
                     <select id="staff_id" name="staff_id" data-staff-select>
                         <option value="">Any available therapist</option>
                         <?php foreach ($staff as $person): ?><option value="<?= $person['id'] ?>" <?= (string) ($old['staff_id'] ?? '') === (string) $person['id'] ? 'selected' : '' ?>><?= escape($person['name']) ?></option><?php endforeach; ?>
@@ -43,6 +44,7 @@ $availabilityError = $availabilityError ?? '';
 
                 <fieldset class="booking-step" data-step="1">
                     <legend tabindex="-1"><span>02</span> Find your time</legend>
+                    <p class="booking-step-hint">Choose a date, then select a time to continue to your details.</p>
                     <label class="field-label" for="appointment_date">Appointment date</label>
                     <input id="appointment_date" name="appointment_date" type="date" min="<?= gmdate('Y-m-d') ?>" value="<?= escape($old['appointment_date'] ?? '') ?>" required data-date-input>
                     <input type="hidden" name="start" value="<?= escape($old['start'] ?? '') ?>" data-start-input>

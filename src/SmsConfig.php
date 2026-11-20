@@ -6,7 +6,7 @@ final class SmsConfig
     public static function load(): array
     {
         $path = APP_ROOT . '/config/sms.local.php';
-        $saved = is_file($path) ? require $path : [];
+        $saved = PrivateConfig::load('sms') ?? (is_file($path) ? require $path : []);
         return $saved + ['enabled'=>false, 'sender'=>'HappySpa', 'api_key'=>''];
     }
 
@@ -27,13 +27,6 @@ final class SmsConfig
             if (trim((string) ($input[$key] ?? '')) !== '') { $config[$key] = trim((string) $input[$key]); }
         }
         if ($config['enabled'] && $config['api_key'] === '') { throw new InvalidArgumentException('Enter your BulkSMS Ghana API key.'); }
-        $temporary = tempnam(APP_ROOT . '/config', 'sms-');
-        try {
-            if (!$temporary || !rename($temporary, $temporary . '.php')) { throw new DomainException('SMS configuration could not be saved. Check folder permissions.'); }
-            $temporary .= '.php';
-            if (!$temporary || file_put_contents($temporary, "<?php\nreturn " . var_export($config, true) . ";\n") === false || !rename($temporary, APP_ROOT . '/config/sms.local.php')) {
-                throw new DomainException('SMS configuration could not be saved. Check folder permissions.');
-            }
-        } finally { if ($temporary && is_file($temporary)) { unlink($temporary); } }
+        PrivateConfig::save('sms', $config);
     }
 }

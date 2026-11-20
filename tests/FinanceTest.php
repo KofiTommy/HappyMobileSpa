@@ -168,7 +168,7 @@ function test_finance_receipt_validation_private_storage_and_csv_cells(): void
         assert_same(false, is_file($discardPath), 'replaced receipt securely discarded');
         assert_same('Require all denied', trim((string) file_get_contents(APP_ROOT . '/storage/.htaccess')), 'storage denied by Apache');
         assert_same('Require all denied', trim((string) file_get_contents(APP_ROOT . '/storage/receipts/.htaccess')), 'receipt directory denied by Apache');
-        assert_contains("~^/(?:storage|config)(?:/|$)~", file_get_contents(APP_ROOT . '/router.php'), 'PHP preview blocks direct storage access');
+        assert_contains('storage|config|src|database|scripts|tests|templates', file_get_contents(APP_ROOT . '/router.php'), 'PHP preview blocks direct access to private directories');
         assert_contains('Auth::requireAdmin()', file_get_contents(APP_ROOT . '/admin/expense-receipt.php'), 'receipt route requires administrator');
     } finally {
         if (is_file($path)) { unlink($path); }

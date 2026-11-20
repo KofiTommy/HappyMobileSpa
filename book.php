@@ -12,7 +12,7 @@ if (isset($_GET['confirmation'])) {
         exit;
     }
     $statement = Database::connection()->prepare(
-        'SELECT b.*, c.name AS customer_name, c.phone AS customer_phone, c.email AS customer_email,
+        'SELECT b.*, COALESCE(b.contact_name,c.name) AS customer_name, COALESCE(b.contact_phone,c.phone) AS customer_phone, COALESCE(b.contact_email,c.email) AS customer_email,
                 s.name AS service_name, s.duration_min, st.name AS staff_name
          FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id
          JOIN staff st ON st.id=b.staff_id WHERE b.reference = ?'
@@ -31,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Your form session expired. Please review and submit again.';
     } elseif (!isset($_POST['refresh_availability'])) {
         try {
+            RateLimit::check('booking-create-ip', (string) ($_SERVER['REMOTE_ADDR'] ?? 'local'), 10, 3600);
             if (isset($_POST['slot_choice']) && is_string($_POST['slot_choice'])) {
                 $_POST['start'] = (string) $_POST['slot_choice'];
             }

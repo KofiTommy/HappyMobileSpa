@@ -9,6 +9,10 @@ final class Database
     {
         if (self::$pdo === null) {
             $dsn = (string) config('db_dsn');
+            if (config('environment') === 'production' && str_starts_with($dsn, 'mysql:')
+                && (strtolower((string) config('db_user')) === 'root' || (string) config('db_pass') === '')) {
+                throw new RuntimeException('Production requires a dedicated database user and password.');
+            }
             $options = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -33,7 +37,7 @@ final class Database
             $pdo->commit();
             return $result;
         } catch (Throwable $error) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) { $pdo->rollBack(); }
             throw $error;
         }
     }

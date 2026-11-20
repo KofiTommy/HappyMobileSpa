@@ -10,7 +10,7 @@ final class SmsNotifications
         $where = '';
         $params = [];
         if ($search !== '') {
-            $where = ' WHERE (b.reference LIKE ? OR c.name LIKE ? OR c.phone LIKE ? OR n.kind LIKE ? OR n.state LIKE ? OR n.provider_id LIKE ?)';
+            $where = ' WHERE (b.reference LIKE ? OR COALESCE(b.contact_name,c.name) LIKE ? OR COALESCE(b.contact_phone,c.phone) LIKE ? OR n.kind LIKE ? OR n.state LIKE ? OR n.provider_id LIKE ?)';
             $term = '%' . $search . '%';
             $params = array_fill(0, 6, $term);
         }
@@ -20,7 +20,7 @@ final class SmsNotifications
         $total = (int) $count->fetchColumn();
         $pages = max(1, (int) ceil($total / 20));
         $page = min(max(1, $page), $pages);
-        $query = $pdo->prepare('SELECT n.*,b.reference,c.name AS customer_name,c.phone AS customer_phone' . $from . $where . ' ORDER BY n.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
+        $query = $pdo->prepare('SELECT n.*,b.reference,COALESCE(b.contact_name,c.name) AS customer_name,COALESCE(b.contact_phone,c.phone) AS customer_phone' . $from . $where . ' ORDER BY n.id DESC LIMIT 20 OFFSET ' . (($page - 1) * 20));
         $query->execute($params);
         return ['notifications'=>$query->fetchAll(), 'total'=>$total, 'page'=>$page, 'pages'=>$pages, 'search'=>$search];
     }
@@ -92,7 +92,7 @@ final class SmsNotifications
             $claim = $pdo->prepare("UPDATE sms_notifications SET state='processing',claimed_at=?,attempts=attempts+1 WHERE id=? AND state='pending'");
             $claim->execute([$timestamp, $job['id']]);
             if ($claim->rowCount() !== 1) { continue; }
-            $queryBooking = $pdo->prepare('SELECT b.*,c.phone AS customer_phone,s.name AS service_name FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id WHERE b.id=?');
+            $queryBooking = $pdo->prepare('SELECT b.*,COALESCE(b.contact_phone,c.phone) AS customer_phone,s.name AS service_name FROM bookings b JOIN customers c ON c.id=b.customer_id JOIN services s ON s.id=b.service_id WHERE b.id=?');
             $queryBooking->execute([$job['booking_id']]);
             $booking = $queryBooking->fetch();
             if (!$booking || $booking['status'] !== 'confirmed' || $booking['slot_start'] !== $job['slot_start'] || $booking['slot_start'] <= $timestamp || $job['due_at'] < $now->modify('-1 hour')->format('Y-m-d H:i:s')) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 function paystack_fixture(): array
 {
     $booking = seed_confirmed_booking('+48 hours');
+    $booking['test_admin_id'] = seed_admin('payment-owner', password_hash('secure test password', PASSWORD_DEFAULT));
     Database::connection()->exec("UPDATE customers SET email='client@example.com' WHERE id=1");
     return $booking;
 }
@@ -60,7 +61,7 @@ function test_paystack_verification_is_strict_and_idempotent(): void
     assert_same('paid', PaystackPayment::settle($payment['reference'],$data), 'duplicate webhook harmless');
     assert_same(1, (int)Database::connection()->query("SELECT COUNT(*) FROM booking_events WHERE event_type='payment_verified'")->fetchColumn(), 'one payment event');
     assert_same('paystack_momo', PaystackPayment::booking($booking['id'])['payment_method'], 'payment method recorded');
-    assert_throws(fn () => Booking::setPaymentStatus($booking['id'],'unpaid',1), 'managed through Paystack');
+    assert_throws(fn () => Booking::setPaymentStatus($booking['id'],'unpaid',$booking['test_admin_id']), 'managed through Paystack');
     assert_throws(fn () => PaystackPayment::start($booking['id'],paystack_fake_client($requests),paystack_test_config()), 'another payment');
 }
 
@@ -69,7 +70,7 @@ function test_paystack_late_payment_requires_review_without_reopening_cancelled_
     $booking = paystack_fixture();
     $requests = [];
     PaystackPayment::start($booking['id'],paystack_fake_client($requests),paystack_test_config());
-    Booking::setStatus($booking['id'],'cancelled',1);
+    Booking::setStatus($booking['id'],'cancelled',$booking['test_admin_id']);
     $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
     assert_same('paid_review', PaystackPayment::settle($payment['reference'],paystack_success($payment)), 'late payment flagged');
     assert_same('cancelled', PaystackPayment::booking($booking['id'])['status'], 'cancelled booking stays cancelled');
@@ -120,10 +121,10 @@ function test_paystack_payment_received_after_manual_payment_requires_review(): 
     $booking = paystack_fixture();
     $requests = [];
     PaystackPayment::start($booking['id'],paystack_fake_client($requests),paystack_test_config());
-    Booking::setPaymentStatus($booking['id'],'paid',1);
+    Booking::setPaymentStatus($booking['id'],'paid',$booking['test_admin_id']);
     $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
     assert_same('paid_review', PaystackPayment::settle($payment['reference'],paystack_success($payment)), 'possible duplicate payment flagged');
-    assert_throws(fn () => Booking::setPaymentStatus($booking['id'],'unpaid',1), 'managed through Paystack');
+    assert_throws(fn () => Booking::setPaymentStatus($booking['id'],'unpaid',$booking['test_admin_id']), 'managed through Paystack');
 }
 
 function test_paystack_paid_review_is_not_rendered_as_unqualified_success(): void
@@ -151,7 +152,7 @@ function test_paystack_persisted_paid_review_is_used_on_subsequent_get(): void
     $booking = paystack_fixture();
     $requests = [];
     PaystackPayment::start($booking['id'], paystack_fake_client($requests), paystack_test_config());
-    Booking::setStatus($booking['id'], 'cancelled', 1);
+    Booking::setStatus($booking['id'], 'cancelled', $booking['test_admin_id']);
     $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
     assert_same('paid_review', PaystackPayment::settle($payment['reference'], paystack_success($payment)), 'persisted review fixture');
 
@@ -243,7 +244,7 @@ function test_payment_confirmation_sms_not_sent_for_review_or_failed_payments():
     $requests = [];
     PaystackPayment::start($booking['id'], paystack_fake_client($requests), paystack_test_config());
     $payment = Database::connection()->query('SELECT * FROM paystack_payments')->fetch();
-    Booking::setStatus($booking['id'], 'cancelled', 1);
+    Booking::setStatus($booking['id'], 'cancelled', $booking['test_admin_id']);
     assert_same('paid_review', PaystackPayment::settle($payment['reference'], paystack_success($payment)), 'late payment requires review');
     assert_same(0, (int) Database::connection()->query("SELECT COUNT(*) FROM sms_notifications WHERE kind='payment_confirmation'")->fetchColumn(), 'review payment sends no success receipt');
     assert_same(0, SmsNotifications::process(fn () => throw new RuntimeException('Review receipt must not send')), 'no review receipt is processable');

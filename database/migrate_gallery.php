@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require dirname(__DIR__) . '/src/bootstrap.php';
 if (PHP_SAPI !== 'cli') { throw new RuntimeException('Run from the command line.'); }
 Database::connection()->exec('CREATE TABLE IF NOT EXISTS gallery_images (

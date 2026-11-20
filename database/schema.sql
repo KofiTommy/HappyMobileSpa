@@ -95,6 +95,9 @@ CREATE TABLE IF NOT EXISTS bookings (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   reference VARCHAR(20) NOT NULL UNIQUE,
   customer_id INT UNSIGNED NOT NULL,
+  contact_name VARCHAR(160) NULL,
+  contact_phone VARCHAR(30) NULL,
+  contact_email VARCHAR(190) NULL,
   service_id INT UNSIGNED NOT NULL,
   staff_id INT UNSIGNED NOT NULL,
   slot_start DATETIME NOT NULL,
@@ -130,6 +133,7 @@ CREATE TABLE IF NOT EXISTS admin_users (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(80) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
+  session_version INT NOT NULL DEFAULT 1,
   role VARCHAR(20) NOT NULL DEFAULT 'admin',
   staff_id INT UNSIGNED NULL UNIQUE,
   CONSTRAINT fk_admin_staff FOREIGN KEY(staff_id) REFERENCES staff(id),
@@ -281,4 +285,9 @@ CREATE TABLE IF NOT EXISTS finance_events (
   INDEX idx_finance_entity (entity_type,entity_id),
   INDEX idx_finance_created (created_at),
   CONSTRAINT fk_finance_admin FOREIGN KEY(admin_id) REFERENCES admin_users(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE IF NOT EXISTS uploaded_photos (
+  path VARCHAR(255) PRIMARY KEY,
+  contents MEDIUMBLOB NOT NULL
 ) ENGINE=InnoDB;

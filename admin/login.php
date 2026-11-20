@@ -1,7 +1,13 @@
 <?php
 declare(strict_types=1);
 require dirname(__DIR__) . '/src/bootstrap.php';
-if (!empty($_SESSION['admin_id'])) { header('Location: index.php'); exit; }
+if (!empty($_SESSION['admin_id'])) {
+    $query = Database::connection()->prepare('SELECT password_hash,role,session_version FROM admin_users WHERE id=? AND active=1');
+    $query->execute([(int) $_SESSION['admin_id']]);
+    $user = $query->fetch();
+    if ($user && Auth::sessionValid($user)) { header('Location: index.php'); exit; }
+    Auth::logout();
+}
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!Csrf::verify($_POST['csrf'] ?? null)) {

@@ -1,5 +1,6 @@
 <?php
 declare(strict_types=1);
+if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require dirname(__DIR__) . '/src/bootstrap.php';
 $pdo = Database::connection();
 if ((int) $pdo->query('SELECT COUNT(*) FROM services')->fetchColumn() > 0) {

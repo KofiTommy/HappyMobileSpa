@@ -7,4 +7,6 @@ return [
     'db_pass' => getenv('SPA_DB_PASS') ?: '',
     'timezone' => 'Africa/Accra',
     'environment' => getenv('SPA_ENV') ?: 'development',
+    // Prefer an absolute directory outside the public document root on hosting.
+    'private_storage' => getenv('SPA_PRIVATE_STORAGE') ?: dirname(__DIR__) . '/storage/private',
 ];

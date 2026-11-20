@@ -44,11 +44,6 @@ final class TeamPhoto
     private static function photoStore(): PDO
     {
         $pdo = Database::connection();
-        static $initialized = null;
-        if ($initialized !== $pdo) {
-            $pdo->exec('CREATE TABLE IF NOT EXISTS uploaded_photos (path VARCHAR(255) PRIMARY KEY, contents MEDIUMBLOB NOT NULL)');
-            $initialized = $pdo;
-        }
         return $pdo;
     }
 
@@ -115,9 +110,13 @@ final class TeamPhoto
         }
         @chmod($destination, 0644);
         clearstatcache(true, $destination);
-        if (!self::available($path)) {
+        try {
+            if (!self::available($path)) {
+                throw new DomainException('The photo was saved but is not readable by the website. Check the image folder permissions.');
+            }
+        } catch (Throwable $error) {
             @unlink($destination);
-            throw new DomainException('The photo was saved but is not readable by the website. Check the image folder permissions.');
+            throw $error;
         }
         return $path;
     }

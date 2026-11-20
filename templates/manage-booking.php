@@ -33,7 +33,7 @@
         <section class="danger-zone" aria-labelledby="cancel-heading">
             <h2 id="cancel-heading">Cancel this appointment</h2>
             <p id="cancel-policy">This action cannot be undone. <?= $booking['payment_status'] === 'paid' ? 'Cancellation does not automatically refund a payment; contact the spa about a refund.' : escape($booking['accepted_policy']) ?></p>
-            <form class="manage-form" method="post" action="manage.php" onsubmit="return confirm('Cancel this appointment? This cannot be undone.')">
+            <form class="manage-form" method="post" action="manage.php" data-confirm="Cancel this appointment? This cannot be undone.">
                 <input type="hidden" name="csrf" value="<?= escape(Csrf::token()) ?>">
                 <input type="hidden" name="action" value="cancel"><input type="hidden" name="booking_id" value="<?= $booking['id'] ?>">
                 <button class="button button-danger" type="submit" aria-describedby="cancel-policy">Cancel appointment</button>

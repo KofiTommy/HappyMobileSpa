@@ -1,4 +1,8 @@
 const menuButton = document.querySelector('[data-menu-toggle]');
+document.querySelectorAll('[data-print]').forEach(button => button.addEventListener('click', () => window.print()));
+document.querySelectorAll('form[data-confirm]').forEach(form => form.addEventListener('submit', event => {
+  if (!window.confirm(form.dataset.confirm)) event.preventDefault();
+}));
 const menu = document.querySelector('[data-menu]');
 if (menuButton && menu) {
   const closeMenu = () => {

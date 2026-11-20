@@ -1,0 +1,27 @@
+Options -Indexes -MultiViews
+<IfModule mod_headers.c>
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-Frame-Options "DENY"
+Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+<IfModule php_module>
+php_flag display_errors Off
+php_flag display_startup_errors Off
+php_flag expose_php Off
+php_flag session.upload_progress.enabled Off
+php_value upload_max_filesize 5M
+php_value post_max_size 8M
+php_value max_file_uploads 1
+</IfModule>
+
+# This application is served from the repository root. Never expose internals.
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^\.well-known/acme-challenge/[A-Za-z0-9_-]+$ - [L]
+RewriteRule (^|/)\. - [F,L]
+RewriteRule ^(?:src|config|database|scripts|tests|templates|storage|docs|logo-assets)(?:/|$) - [F,L,NC]
+RewriteRule ^(?:server\.mjs|router\.php|package(?:-lock)?\.json|AGENTS\.md)$ - [F,L,NC]
+</IfModule>
+<FilesMatch "(?i)(\.(?:sql|sqlite|sqlite3|db|bak|backup|log|ini|env|ps1|py|ya?ml|zip|tar|gz)|~)$">
+Require all denied
+</FilesMatch>

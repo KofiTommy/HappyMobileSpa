@@ -29,6 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $reference = strtoupper(trim((string) $_POST['reference']));
         $phone = trim((string) $_POST['phone']);
         try {
+            RateLimit::check('booking-lookup-ip', (string) ($_SERVER['REMOTE_ADDR'] ?? 'local'), 20, 900);
             RateLimit::check('booking-lookup', ($_SERVER['REMOTE_ADDR'] ?? 'local') . '|' . $reference);
             $found = Booking::findForCustomer($reference, $phone);
             if (!$found) {
