@@ -58,5 +58,9 @@
         <span>Developed by <strong>Tokaa Tech Consult</strong></span>
     </a>
 </footer>
+<a class="whatsapp-float" href="https://wa.me/233597001194" target="_blank" rel="noopener noreferrer" aria-label="Chat with Happy Mobile Spa on WhatsApp (opens in a new tab)" title="Chat with us on WhatsApp">
+    <?= ui_icon('whatsapp') ?>
+    <span class="whatsapp-float-label" aria-hidden="true">Chat with us</span>
+</a>
 </body>
 </html>
