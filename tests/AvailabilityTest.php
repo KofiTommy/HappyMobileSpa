@@ -1,6 +1,13 @@
 <?php
 declare(strict_types=1);
 
+function test_customer_availability_never_offers_past_appointments(): void
+{
+    seed_availability_fixture();
+    $pastDate = (new DateTimeImmutable('last tuesday', new DateTimeZone('UTC')))->format('Y-m-d');
+    assert_same([], Availability::slots(1, 1, $pastDate), 'past appointment times cannot be selected');
+}
+
 function test_availability_excludes_breaks_buffers_and_time_off(): void
 {
     seed_availability_fixture();

@@ -48,16 +48,22 @@ final class PaystackPayment
             $lock->execute([$id]);
             $booking = self::booking($id);
             if ($booking['status'] !== 'confirmed' || $booking['slot_start'] <= gmdate('Y-m-d H:i:s') || $booking['payment_status'] === 'paid') { throw new DomainException('This appointment cannot accept another payment.'); }
-            if (!filter_var($booking['customer_email'], FILTER_VALIDATE_EMAIL)) { throw new DomainException('An email address is required for Paystack payment.'); }
             if (self::amount((string) $booking['price']) <= 0) { throw new DomainException('This appointment does not require payment.'); }
             $query = $pdo->prepare('SELECT * FROM paystack_payments WHERE booking_id=?');
             $query->execute([$id]);
             if ($existing = $query->fetch()) { return $existing; }
             $reference = 'SPA-PAY-' . bin2hex(random_bytes(16));
+            $email = trim((string) ($booking['customer_email'] ?? ''));
+            if ($email === '') {
+                // Payment-only identifier, never a customer contact or shared mailbox.
+                $email = 'guest-' . substr($reference, 8) . '@happymobilespa.online';
+            } elseif (strlen($email) > 190 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                throw new DomainException('Enter a valid email address or leave it blank.');
+            }
             $mode = str_starts_with($config['secret_key'], 'sk_live_') ? 'live' : 'test';
             $pdo->prepare("INSERT INTO paystack_payments (booking_id,reference,amount_subunit,currency,email,mode,state,created_at) VALUES (?,?,?,'GHS',?,?,'created',?)")
-                ->execute([$id,$reference,self::amount((string) $booking['price']),$booking['customer_email'],$mode,gmdate('Y-m-d H:i:s')]);
-            return ['reference'=>$reference,'amount_subunit'=>self::amount((string) $booking['price']),'email'=>$booking['customer_email'],'state'=>'created','authorization_url'=>null];
+                ->execute([$id,$reference,self::amount((string) $booking['price']),$email,$mode,gmdate('Y-m-d H:i:s')]);
+            return ['reference'=>$reference,'amount_subunit'=>self::amount((string) $booking['price']),'email'=>$email,'state'=>'created','authorization_url'=>null];
         });
         if (!empty($payment['authorization_url'])) { return $payment['authorization_url']; }
         if ($payment['state'] !== 'created') { throw new DomainException('Checkout is being prepared or needs verification. Use Check payment status before trying again.'); }

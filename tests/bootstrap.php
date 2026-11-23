@@ -45,6 +45,7 @@ require __DIR__ . '/AuthTest.php';
 require __DIR__ . '/AdminManagementTest.php';
 require __DIR__ . '/ReceptionistTest.php';
 require __DIR__ . '/TeamPhotoTest.php';
+require __DIR__ . '/TherapistVideoTest.php';
 require __DIR__ . '/GalleryTest.php';
 require __DIR__ . '/ContactMessageTest.php';
 require __DIR__ . '/SmsTest.php';

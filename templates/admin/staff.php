@@ -21,6 +21,9 @@
         <label>Profile picture<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" aria-describedby="photo-help"></label>
         <small id="photo-help" class="help-text">JPG, PNG, or WebP. Maximum 2 MB and 4096 × 4096 pixels. Customers see this photo when choosing a therapist. Uploading a new photo replaces the current one.</small>
         <label>Biography<textarea name="biography" rows="3"><?= escape($editing['biography'] ?? '') ?></textarea></label>
+        <label>Introduction video (optional)<input type="url" name="video_url" maxlength="2048" placeholder="https://www.youtube.com/watch?v=..." value="<?= escape($editing['video_url'] ?? '') ?>" aria-describedby="therapist-video-help"></label>
+        <small id="therapist-video-help">Paste a YouTube, Vimeo, TikTok or Instagram video link, or a public HTTPS MP4/WebM link. Clients can watch it in a new tab before choosing this therapist. Your profile picture stays in place. Clear this field to remove only the video.</small>
+        <?php if ($videoPreview = TherapistVideo::publicUrl($editing['video_url'] ?? null)): ?><a class="small-button" href="<?= escape($videoPreview) ?>" target="_blank" rel="noopener noreferrer">Preview introduction video (new tab)</a><?php endif; ?>
         <fieldset class="check-grid"><legend>Treatments offered</legend><?php foreach ($services as $service): if ($service['archived_at']) continue; ?><label><input type="checkbox" name="service_ids[]" value="<?= $service['id'] ?>" <?= $editing && in_array((int) $service['id'], $editing['service_ids'], true) ? 'checked' : '' ?>> <?= escape($service['name']) ?></label><?php endforeach; ?></fieldset>
         <label class="check-row"><input type="checkbox" name="active" value="1" <?= !$editing || $editing['active'] ? 'checked' : '' ?>> Available for appointment booking</label>
         <button class="admin-button" type="submit">Save team member</button>

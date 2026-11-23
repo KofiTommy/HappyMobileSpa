@@ -30,14 +30,18 @@ if (form) {
     if (moveFocus) { steps[index].querySelector('legend')?.focus({ preventScroll: true }); }
   };
   const validStep = (report = true) => {
-    const wantsMobileMoney = form.querySelector('[name="payment_choice"]:checked')?.value === 'mobile_money';
-    form.elements.email.required = wantsMobileMoney;
-    if (current === 3 && wantsMobileMoney) {
+    if (current === 2) {
+      const phone = form.elements.phone;
+      const digits = phone.value.replace(/\D/g, '').replace(/^233/, '0');
+      phone.setCustomValidity(/^0[2-5][0-9]{8}$/.test(digits) ? '' : 'Enter a valid Ghana phone number, for example 024 000 0000 or +233 24 000 0000.');
+      form.elements.name.setCustomValidity(form.elements.name.value.trim().length >= 2 ? '' : 'Enter your full name.');
+    }
+    form.elements.email.required = false;
+    if (current === 3) {
       const email = form.elements.email;
-      email.required = true;
       if (!email.checkValidity()) {
         showStep(2);
-        alert.textContent = 'Enter an email address for your mobile money payment receipt.';
+        alert.textContent = 'Enter a valid email address or leave it blank.';
         email.focus(); email.reportValidity();
         return false;
       }
@@ -55,6 +59,7 @@ if (form) {
   form.querySelectorAll('[data-next]').forEach(button => button.addEventListener('click', () => { if (validStep()) showStep(Math.min(3, current + 1), true); }));
   form.querySelectorAll('[data-back]').forEach(button => button.addEventListener('click', () => showStep(Math.max(0, current - 1), true)));
   const advance = () => { if (validStep()) showStep(Math.min(3, current + 1), true); };
+  ['phone', 'name'].forEach(name => form.elements[name].addEventListener('input', event => event.target.setCustomValidity('')));
   // Keep typing predictable: Enter advances a step, while textarea keeps newlines.
   form.addEventListener('keydown', event => {
     if (event.key !== 'Enter' || event.isComposing || event.target.tagName !== 'INPUT' || ['radio', 'checkbox', 'date'].includes(event.target.type)) return;
@@ -75,6 +80,8 @@ if (form) {
     staffSelect.value = therapists.some(person => String(person.id) === selected) ? selected : '';
     therapistCards.replaceChildren();
     [{ id: '', name: 'Any available therapist', biography: 'We will match you with an available therapist.' }, ...therapists].forEach(person => {
+      const profile = document.createElement('div');
+      profile.className = 'therapist-profile';
       const button = document.createElement('button');
       button.type = 'button';
       button.className = 'therapist-card';
@@ -98,7 +105,18 @@ if (form) {
         staffSelect.dispatchEvent(new Event('change'));
         if (current === 0) advance();
       });
-      therapistCards.append(button);
+      profile.append(button);
+      if (person.video_url) {
+        const watch = document.createElement('a');
+        watch.className = 'therapist-video-link';
+        watch.href = person.video_url;
+        watch.target = '_blank';
+        watch.rel = 'noopener noreferrer';
+        watch.textContent = 'Watch introduction';
+        watch.setAttribute('aria-label', `Watch ${person.name}'s introduction (opens in a new tab)`);
+        profile.append(watch);
+      }
+      therapistCards.append(profile);
     });
     syncTherapistCards();
   };

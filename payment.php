@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $paymentState = PaystackPayment::verify($paymentReference);
             $message = $paymentState === 'paid' ? 'Your payment has been verified.' : ($paymentState === 'paid_review' ? 'Your payment was received, but the appointment needs review. Contact the spa to confirm arrangements or discuss a refund.' : 'Payment has not yet been confirmed. If you approved it on your phone, please wait and check again.');
         } else {
-            if (!$booking['customer_email']) {
+            if (!$booking['customer_email'] && trim((string) ($_POST['email'] ?? '')) !== '') {
                 $email = trim((string) ($_POST['email'] ?? ''));
                 if (strlen($email)>190 || !filter_var($email,FILTER_VALIDATE_EMAIL)) { throw new InvalidArgumentException('Enter a valid email address for your payment receipt.'); }
                 Database::connection()->prepare('UPDATE bookings SET contact_email=? WHERE id=?')->execute([$email,$booking['id']]);
@@ -43,7 +43,6 @@ $autoStart = $_SERVER['REQUEST_METHOD'] === 'GET'
     && ($_GET['start'] ?? '') === '1'
     && in_array($paymentState, ['', 'pending'], true)
     && Paystack::ready()
-    && filter_var($booking['customer_email'], FILTER_VALIDATE_EMAIL)
     && $booking['status'] === 'confirmed'
     && $booking['slot_start'] > gmdate('Y-m-d H:i:s')
     && $booking['payment_status'] !== 'paid';

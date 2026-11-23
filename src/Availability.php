@@ -21,7 +21,7 @@ final class Availability
             for ($minute = 0; $minute < 24 * 60; $minute += 15) {
                 $localStart = $dayStart->modify('+' . $minute . ' minutes');
                 $utcStart = $localStart->setTimezone(new DateTimeZone('UTC'));
-                if (!self::isAvailable($serviceId, (int) $person['id'], $utcStart, null, null, false)) {
+                if (!self::isAvailable($serviceId, (int) $person['id'], $utcStart)) {
                     continue;
                 }
                 $key = $utcStart->format('Y-m-d H:i:s');

@@ -1,0 +1,7 @@
+Options -Indexes
+<FilesMatch "(?i)^(?![a-f0-9]{32}\.mp4$)">
+Require all denied
+</FilesMatch>
+<IfModule mod_mime.c>
+AddType video/mp4 .mp4
+</IfModule>

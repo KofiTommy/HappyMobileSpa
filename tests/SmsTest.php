@@ -9,6 +9,39 @@ function sms_job_booking(string $start, string $status = 'confirmed'): array
     return $pdo->query("SELECT * FROM bookings WHERE reference='SPA-EXISTING'")->fetch();
 }
 
+function test_admin_created_booking_sends_customer_confirmation_and_reminder(): void
+{
+    seed_availability_fixture();
+    $adminId = seed_admin('sms-manual-owner', password_hash('isolated test password', PASSWORD_DEFAULT));
+    $input = array_replace(booking_input(), ['staff_id'=>1, 'phone'=>'0244000000', 'status'=>'confirmed']);
+    $booking = Booking::createManual($input, $adminId);
+    $pdo = Database::connection();
+    $query = $pdo->prepare('SELECT kind,due_at FROM sms_notifications WHERE booking_id=? ORDER BY due_at');
+    $query->execute([$booking['id']]);
+    $jobs = $query->fetchAll();
+    assert_same(['confirmation','reminder'], array_column($jobs, 'kind'), 'manual confirmed booking queues both customer notifications');
+    $reminderTime = (new DateTimeImmutable($booking['slot_start'], new DateTimeZone('UTC')))->modify('-24 hours');
+    assert_same($reminderTime->format('Y-m-d H:i:s'), $jobs[1]['due_at'], 'manual booking reminder due 24 hours before appointment');
+    $messages = [];
+    $sender = function (string $phone, string $body) use (&$messages): array {
+        $messages[] = [$phone, $body];
+        return ['state'=>'submitted'];
+    };
+    assert_same(1, SmsNotifications::process($sender), 'manual booking confirmation submitted immediately');
+    assert_same(1, SmsNotifications::process($sender, $reminderTime), 'manual booking reminder submitted when due');
+    assert_same(0, SmsNotifications::process($sender, $reminderTime), 'manual booking messages are not duplicated');
+    assert_same(['0244000000','0244000000'], array_column($messages, 0), 'both messages go to the customer phone, not the admin');
+    assert_contains('Booking confirmed', $messages[0][1], 'confirmation message');
+    assert_contains('Reminder', $messages[1][1], 'reminder message');
+
+    seed_availability_fixture();
+    $adminId = seed_admin('sms-pending-owner', password_hash('isolated test password', PASSWORD_DEFAULT));
+    $booking = Booking::createManual(array_replace($input, ['status'=>'pending']), $adminId);
+    assert_same(0, (int) $pdo->query('SELECT COUNT(*) FROM sms_notifications')->fetchColumn(), 'manual pending booking does not notify prematurely');
+    Booking::setStatus((int) $booking['id'], 'confirmed', $adminId);
+    assert_same(2, (int) $pdo->query("SELECT COUNT(*) FROM sms_notifications WHERE state='pending'")->fetchColumn(), 'confirming manual pending booking queues confirmation and reminder');
+}
+
 function test_sms_booking_hooks_and_atomic_queue(): void
 {
     seed_availability_fixture();

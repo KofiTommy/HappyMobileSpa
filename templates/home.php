@@ -19,13 +19,18 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
     <?php $heroImages = $heroImages ?? Gallery::defaults(); ?>
     <div class="hero-visual hero-carousel" data-hero-carousel role="region" aria-roledescription="carousel" aria-label="Spa moments">
         <?php foreach ($heroImages as $i => $image): ?><div class="hero-slide <?= $i === 0 ? 'is-active' : '' ?>" data-hero-slide role="group" aria-roledescription="slide" aria-label="<?= $i + 1 ?> of <?= count($heroImages) ?>" aria-hidden="<?= $i === 0 ? 'false' : 'true' ?>">
+            <?php if (GalleryMedia::isVideo($image['path'])): ?>
+            <video src="<?= escape($image['path']) ?>" controls muted playsinline preload="<?= $i === 0 ? 'metadata' : 'none' ?>" aria-label="<?= escape($image['alt_text']) ?>" tabindex="<?= $i === 0 ? '0' : '-1' ?>">Your browser cannot play this video. <a href="<?= escape($image['path']) ?>">Open video</a></video>
+            <p class="hero-video-error" data-video-error hidden role="status">This video could not be played. <a href="<?= escape($image['path']) ?>">Open video</a> or choose another slide.</p>
+            <?php else: ?>
             <img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1800" height="1200" <?= $i === 0 ? 'fetchpriority="high"' : 'loading="lazy"' ?>>
+            <?php endif; ?>
         </div><?php endforeach; ?>
         <div class="hero-caption"><span data-hero-counter>01 / <?= str_pad((string) count($heroImages), 2, '0', STR_PAD_LEFT) ?></span><p data-hero-caption><?= escape($heroImages[0]['caption']) ?></p></div>
         <?php if (count($heroImages) > 1): ?><div class="hero-carousel-controls" data-hero-controls hidden>
-            <button type="button" data-hero-prev aria-label="Previous photo">&#8592;</button>
+            <button type="button" data-hero-prev aria-label="Previous slide">&#8592;</button>
             <button type="button" data-hero-pause>Pause slideshow</button>
-            <button type="button" data-hero-next aria-label="Next photo">&#8594;</button>
+            <button type="button" data-hero-next aria-label="Next slide">&#8594;</button>
         </div><?php endif; ?>
         <script type="application/json" data-hero-captions><?= json_encode(array_column($heroImages, 'caption'), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?></script>
     </div>
@@ -126,6 +131,7 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
                     </div>
                     <h3><?= escape($person['name']) ?></h3>
                     <?php if (!empty($person['biography'])): ?><p><?= escape($person['biography']) ?></p><?php endif; ?>
+                    <?php if ($videoUrl = TherapistVideo::publicUrl($person['video_url'] ?? null)): ?><a class="therapist-video-link" href="<?= escape($videoUrl) ?>" target="_blank" rel="noopener noreferrer" aria-label="Watch <?= escape($person['name']) ?>'s introduction (opens in a new tab)"><?= ui_icon('play') ?> Watch introduction</a><?php endif; ?>
                 </article>
             <?php endforeach; ?>
         </div>
@@ -140,7 +146,7 @@ $featuredService = $featuredService ?? ($services[0] ?? null);
         <div class="section-heading-row"><h2>A glimpse inside.</h2><a class="text-link" href="gallery.php">View gallery</a></div>
         <div class="home-gallery-grid">
             <?php foreach ($galleryImages as $index => $image): ?>
-                <figure><img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1400" height="933" loading="lazy"><figcaption><span><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></span><?= escape($image['caption']) ?></figcaption></figure>
+                <figure><?php if (GalleryMedia::isVideo($image['path'])): ?><video src="<?= escape($image['path']) ?>" controls playsinline preload="none" aria-label="<?= escape($image['alt_text']) ?>">Your browser cannot play this video. <a href="<?= escape($image['path']) ?>">Open video</a></video><?php else: ?><img src="<?= escape($image['path']) ?>" alt="<?= escape($image['alt_text']) ?>" width="1400" height="933" loading="lazy"><?php endif; ?><figcaption><span><?= str_pad((string) ($index + 1), 2, '0', STR_PAD_LEFT) ?></span><?= escape($image['caption']) ?></figcaption></figure>
             <?php endforeach; ?>
         </div>
     </div>

@@ -27,6 +27,69 @@ function paystack_success(array $payment): array
     return ['reference'=>$payment['reference'],'amount'=>(int)$payment['amount_subunit'],'currency'=>'GHS','status'=>'success','domain'=>'test','channel'=>'mobile_money','customer'=>['email'=>'client@example.com']];
 }
 
+function test_paystack_blank_email_uses_unique_stable_payment_only_fallback(): void
+{
+    $booking = paystack_fixture();
+    $pdo = Database::connection();
+    $pdo->exec('UPDATE customers SET email=NULL');
+    $requests = [];
+    $client = paystack_fake_client($requests);
+    $url = PaystackPayment::start($booking['id'], $client, paystack_test_config());
+    $email = $requests[0][2]['email'];
+    assert_same(true, (bool) filter_var($email, FILTER_VALIDATE_EMAIL), 'fallback is a valid email address');
+    assert_same(1, preg_match('/^guest-[a-f0-9]{32}@happymobilespa\.online$/D', $email), 'fallback belongs to business domain and contains no phone number');
+    assert_same($url, PaystackPayment::start($booking['id'], $client, paystack_test_config()), 'checkout refresh reuses original checkout');
+    assert_same(1, count($requests), 'refresh does not send another initialization');
+    assert_same(null, PaystackPayment::booking($booking['id'])['customer_email'], 'fallback does not become customer contact');
+    assert_same(null, $pdo->query('SELECT email FROM customers WHERE id=1')->fetchColumn(), 'shared profile remains unchanged');
+    $firstPayment = $pdo->query('SELECT * FROM paystack_payments')->fetch();
+    assert_same($email, $firstPayment['email'], 'fallback stored with payment for verification');
+    $otherBooking = Booking::create(array_replace(booking_input(), ['phone'=>'0244000002','email'=>'']));
+    PaystackPayment::start((int) $otherBooking['id'], $client, paystack_test_config());
+    assert_same(false, $email === $requests[1][2]['email'], 'separate appointments never share fallback email');
+    $data = paystack_success($firstPayment);
+    assert_throws(fn () => PaystackPayment::settle($firstPayment['reference'], $data), 'did not match');
+    $data['customer']['email'] = $email;
+    assert_same('paid', PaystackPayment::settle($firstPayment['reference'], $data), 'fallback payments still require verified matching receipt data');
+    assert_same('paid', PaystackPayment::settle($firstPayment['reference'], $data), 'fallback payment settlement remains idempotent');
+}
+
+function test_mobile_money_forms_keep_customer_email_optional(): void
+{
+    global $config;
+    $booking = paystack_fixture();
+    Database::connection()->exec('UPDATE customers SET email=NULL');
+    $previousDirectory = $config['private_storage'] ?? null;
+    $previousDisabled = getenv('SPA_PAYSTACK_DISABLED');
+    $directory = tempnam(sys_get_temp_dir(), 'spa-payment-form-');
+    unlink($directory);
+    mkdir($directory, 0700);
+    $config['private_storage'] = $directory;
+    try {
+        PrivateConfig::save('paystack', ['enabled'=>true,'secret_key'=>'sk_test_formfixture','site_url'=>'https://spa.example.com']);
+        putenv('SPA_PAYSTACK_DISABLED=0');
+        $html = render_template_for_test('payment', ['booking'=>PaystackPayment::booking($booking['id']), 'error'=>'','message'=>'','paymentState'=>'','autoStart'=>true]);
+        $document = new DOMDocument();
+        $previousErrors = libxml_use_internal_errors(true);
+        try { $document->loadHTML($html); }
+        finally { libxml_clear_errors(); libxml_use_internal_errors($previousErrors); }
+        $fields = (new DOMXPath($document))->query('//input[@name="email"]');
+        assert_same(1, $fields->length, 'customer can optionally add a receipt email');
+        assert_same(false, $fields->item(0)->hasAttribute('required'), 'native browser validation does not block blank email');
+        assert_contains('data-auto-submit', $html, 'email-free checkout can auto-start after booking');
+        $html = render_template_for_test('book', ['services'=>Catalog::activeServices(),'staff'=>Catalog::activeStaff(1),'selectedService'=>Catalog::activeServices()[0],'settings'=>[],'old'=>[],'error'=>'']);
+        assert_contains('value="mobile_money"', $html, 'online payment choice shown');
+        assert_not_contains('Required for mobile money', $html, 'booking no longer requires receipt email');
+        assert_not_contains('An email address is required.', $html, 'review does not contradict optional email');
+    } finally {
+        putenv($previousDisabled === false ? 'SPA_PAYSTACK_DISABLED' : 'SPA_PAYSTACK_DISABLED=' . $previousDisabled);
+        if (is_file($directory . '/paystack.json')) { unlink($directory . '/paystack.json'); }
+        rmdir($directory);
+        if ($previousDirectory === null) { unset($config['private_storage']); }
+        else { $config['private_storage'] = $previousDirectory; }
+    }
+}
+
 function test_paystack_initialization_uses_server_amount_and_single_reference(): void
 {
     $booking = paystack_fixture();
@@ -37,6 +100,7 @@ function test_paystack_initialization_uses_server_amount_and_single_reference():
     assert_same(35000, $requests[0][2]['amount'], 'cedis converted to pesewas');
     assert_same('GHS', $requests[0][2]['currency'], 'Ghana currency');
     assert_same(['mobile_money'], $requests[0][2]['channels'], 'MoMo checkout only');
+    assert_same('client@example.com', $requests[0][2]['email'], 'customer supplied email retained');
     assert_same('https://spa.example.com/payment-return.php', $requests[0][2]['callback_url'], 'configured callback URL');
     assert_same($url, PaystackPayment::start($booking['id'],$client,paystack_test_config()), 'existing checkout reused');
     assert_same(1, count($requests), 'refresh cannot create a second charge');
@@ -97,7 +161,7 @@ function test_paystack_signatures_email_and_checkout_url_validation(): void
     assert_same(false, Paystack::validSignature($raw.' ',$signature,$key), 'tampering rejected');
     assert_same(false, Paystack::validSignature($raw,$signature,''), 'empty key rejected');
     $booking = paystack_fixture();
-    Database::connection()->exec('UPDATE customers SET email=NULL');
+    Database::connection()->exec("UPDATE customers SET email='invalid-email'");
     $requests = [];
     assert_throws(fn () => PaystackPayment::start($booking['id'],paystack_fake_client($requests),paystack_test_config()), 'email address');
     Database::connection()->exec("UPDATE customers SET email='client@example.com'");

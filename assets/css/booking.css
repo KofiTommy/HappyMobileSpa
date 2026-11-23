@@ -7,6 +7,9 @@
 @media(max-width:560px){.slot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.appointment-summary dl{display:block}}
 
 .therapist-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:16px}
+.therapist-profile{display:flex;flex-direction:column;gap:8px;min-width:0}
+.therapist-profile>.therapist-card{width:100%;flex:1}
+.therapist-profile .therapist-video-link{justify-content:center;text-align:center}
 .therapist-card{display:flex;flex-direction:column;align-items:center;gap:8px;padding:18px 12px;border:2px solid #e0e4de;border-radius:16px;background:#fff;color:#173f35;font:inherit;text-align:center;cursor:pointer;min-width:0}
 .therapist-card[aria-pressed="true"]{border-color:#173f35;background:#edf4ef}
 .therapist-card:focus-visible{outline:3px solid #a87842;outline-offset:3px}

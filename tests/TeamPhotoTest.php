@@ -58,7 +58,7 @@ function test_missing_uploaded_photos_fall_back_and_server_rules_are_portable():
     ob_start();
     render_admin('Gallery', 'gallery', ['admin'=>['username'=>'owner','role'=>'admin'], 'images'=>[['id'=>1,'path'=>$missingGallery,'caption'=>'Unavailable','alt_text'=>'Unavailable','published'=>1,'show_in_hero'=>1,'display_order'=>0]],'error'=>'']);
     $html = (string) ob_get_clean();
-    assert_contains('photo file is unavailable on the server', $html, 'admin receives a missing-file warning');
+    assert_contains('media file is unavailable on the server', $html, 'admin receives a missing-file warning');
     assert_not_contains($missingGallery, $html, 'broken image URL is not rendered');
 
     foreach (['team', 'gallery'] as $collection) {

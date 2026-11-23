@@ -34,6 +34,8 @@ Existing prepared SQL, escaped HTML/JSON, CSRF checks, image MIME/dimension chec
 
 ## Hosting work still required
 
+If the hosting account has no terminal, select the live spa database in phpMyAdmin, export a backup, and import `database/migrate_security_hostinger.sql` instead of running the PHP migration. This upgrades existing records without replacing the live database. It adds the admin session field and photo backup table used by staff pages as well as booking contact snapshots. An error on a staff page can also have other causes: the hosting error log's `Application failure:` line identifies the exception class, source file and line without exposing database credentials. Do not reset passwords or import a local database merely because a page shows the generic server-error message.
+
 - **Upgrade PHP:** the inspected local runtime is PHP **8.1.25** from October 2023. PHP 8.1 is outside upstream security support. Upgrade local and live environments to a current, security-patched supported PHP branch, preferably 8.4 or newer. Check the live version independently; it was not inspected here. Patch Apache, the database server, OpenSSL and the hosting platform too. Application changes do not patch these components.
 - Confirm HTTPS, trusted proxy handling, private session storage, filesystem ownership, database network isolation, encrypted/restorable backups, error-log access and log retention in hosting. None of those server settings can be inferred from this checkout.
 - The application still uses password-only staff login. Enforce MFA or an access gateway for staff through hosting/identity infrastructure where available. Adding native MFA and verified customer phone/email ownership requires an additional authentication flow.

@@ -49,9 +49,27 @@ For existing installations run `C:/xampp/php/php.exe database/migrate_gallery.ph
 
 Open **Admin → Gallery & homepage** to upload photos, edit captions and image descriptions, choose display order, publish/unpublish, feature photos in the homepage carousel, or delete them. Only administrators can manage the gallery. Published, featured photos rotate every six seconds; visitors can use previous/next and pause/play controls. Rotation pauses on hover, focus, and hidden tabs, and starts paused for reduced-motion preferences. If no published photos are selected, the original spa photos appear.
 
+### Homepage hero videos
+
+The same admin form accepts **MP4 videos up to 5 MB** alongside the existing photos. Choose a short landscape clip exported with H.264 video for browser compatibility, add its caption and scene description, and enable **Show in homepage carousel**. A clip can replace a photo, and photos and videos can be mixed in any display order. Team profile pictures are unaffected.
+
+Hero videos start muted when autoplay is allowed and include native playback/audio controls. A video stays on screen until it finishes; a paused video is not skipped by the normal six-second photo timer. The slideshow pause button pauses the active video. Inactive slides and hidden tabs pause their players. Reduced motion and browser data-saving preferences suppress automatic video playback, while native controls remain available. A single hero video loops. Gallery and homepage gallery-preview players wait for the visitor to press Play.
+
+Videos are stored under `assets/videos/gallery/`, excluded from Git, and backed up in the existing `uploaded_photos` table so missing files can be restored after deployments. Track and deploy that folder's `.htaccess`, preserve the uploaded videos, and include them and the live database in backups. The ordinary application user needs write access to the video directory and SELECT/INSERT/DELETE permissions on the backup table. The database must accept a 5 MB binary parameter (configure `max_allowed_packet` above 5 MB, for example 8 MB or higher). The included PHP limits already allow one 5 MB upload and an 8 MB form; a host-level lower limit must be raised in hosting. Large uploads that cannot be backed up are rejected rather than published without protection.
+
+This feature uses existing gallery paths and the existing upload backup table: **no additional database migration is required** if the earlier security/upload migration is installed. Deploy the changed code and `assets/videos/gallery/.htaccess` through Git. Videos are not transcoded, so test playback on a phone after uploading. For spoken content, use a captioned clip and provide a descriptive text alternative in the form.
+
 Uploads use the same image size/type limits as team photos. Back up `assets/images/gallery/` along with the database and allow the web server to write to it. Gallery uploads are excluded from source control.
 
 ## Team profile photos
+
+### Therapist introduction videos
+
+For an existing installation, run `php database/migrate_therapist_videos.php` before deploying the updated team editor. If the host has no terminal, select the live database in phpMyAdmin, export a backup, then import `database/migrate_therapist_videos_hostinger.sql`. Both upgrades are safe to rerun and preserve profile pictures and other staff data. New installations include `staff.video_url` in `schema.sql`.
+
+Open **Admin → Team & schedules**, edit a therapist, and paste an optional **Introduction video** link. Supported destinations are YouTube, Vimeo, TikTok, Instagram and direct public HTTPS MP4/WebM files. Videos remain hosted at their source; this field does not upload video files to the spa server. Choose a publicly accessible video and include captions where possible. Clear the field to remove the video without changing the profile picture.
+
+Clients see **Watch introduction** on the homepage therapist profile and next to the therapist selection card when booking. It opens a separate tab so their booking selections stay in place. No video autoplays or loads a third-party player before the customer opens the link. Inactive therapists remain hidden from customer pages.
 
 Under **Team & schedules**, upload a JPG, PNG, or WebP when adding or editing a team member. Photos must be at most 2 MB and 4096 × 4096 pixels. Save the profile to publish the photo in the customer therapist selector. Use **Remove current photo** to return to an initials placeholder.
 
@@ -134,7 +152,7 @@ https://www.happymobilespa.com/api/paystack-webhook.php
 
 Callbacks use `/payment-return.php`. Live settings require public HTTPS. HTTP localhost is accepted only for a test key; localhost cannot receive provider webhooks. A publicly reachable test environment is needed to test asynchronous mobile money confirmations. PHP cURL needs working CA certificates; never disable TLS checks.
 
-Appointments remain confirmed and reserve their slots before payment; unpaid appointments are not automatically cancelled. Customers can choose pay-at-spa or mobile money in booking review, then continue to hosted checkout after the appointment is saved. Email is required for mobile money. Existing unpaid bookings can be paid after authenticating through **Manage booking**. A payment failure does not create another booking.
+Appointments remain confirmed and reserve their slots before payment; unpaid appointments are not automatically cancelled. Customers can choose pay-at-spa or mobile money in booking review, then continue to hosted checkout after the appointment is saved. Customer email is optional, including for mobile money. When blank, checkout supplies a unique `guest-<payment-token>@happymobilespa.online` address solely for Paystack's required email parameter. It is stored in the payment record for verification and never written into the booking's contact email or shared customer profile. Refreshing checkout reuses the same payment and address. A valid customer-provided email is retained; invalid nonblank emails must be corrected or cleared. Customers without an email can still see payment status on the website; an emailed receipt requires a real address. Existing unpaid bookings can be paid after authenticating through **Manage booking**. A payment failure does not create another booking. No database migration is required for the email fallback change.
 
 The callback verifies payment directly with Paystack. Webhooks validate the raw-body HMAC SHA512 signature, then independently verify the reference with Paystack. The reference, full amount, currency, customer email, mobile money channel, and test/live domain must match the stored payment. Successful processing is transactional and idempotent. Repeated callbacks/webhooks cannot record payment twice. The payment log distinguishes test and live transactions. Tests set `SPA_PAYSTACK_DISABLED=1` and use simulated API responses; they never charge wallets.
 

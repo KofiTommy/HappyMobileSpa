@@ -164,25 +164,28 @@ final class Catalog
         }
         $pdo = Database::connection();
         $existingPhoto = null;
+        $existingVideo = null;
         if ($id !== null) {
-            $query = $pdo->prepare('SELECT photo FROM staff WHERE id=?');
+            $query = $pdo->prepare('SELECT * FROM staff WHERE id=?');
             $query->execute([$id]);
             $row = $query->fetch();
             if (!$row) { throw new InvalidArgumentException('Team member not found'); }
             $existingPhoto = $row['photo'];
+            $existingVideo = $row['video_url'] ?? null;
         }
+        $video = array_key_exists('video_url', $input) ? TherapistVideo::validate((string) $input['video_url']) : $existingVideo;
         $uploadedPhoto = TeamPhoto::upload($photoUpload);
         $photo = $uploadedPhoto ?? (!empty($input['remove_photo']) ? null : $existingPhoto);
         try {
-            Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $monthlySalary, $serviceIds, $input, $photo): void {
+            Database::transaction(function (PDO $pdo) use (&$id, $name, $biography, $monthlySalary, $serviceIds, $input, $photo, $video): void {
                 $now = gmdate('Y-m-d H:i:s');
                 if ($id === null) {
-                    $statement = $pdo->prepare('INSERT INTO staff (name,biography,monthly_salary,active,created_at,updated_at,photo) VALUES (?,?,?,?,?,?,?)');
-                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $now, $photo]);
+                    $statement = $pdo->prepare('INSERT INTO staff (name,biography,monthly_salary,active,created_at,updated_at,photo,video_url) VALUES (?,?,?,?,?,?,?,?)');
+                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $now, $photo, $video]);
                     $id = (int) $pdo->lastInsertId();
                 } else {
-                    $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, monthly_salary=?, active=?, updated_at=?, photo=? WHERE id=?');
-                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $photo, $id]);
+                    $statement = $pdo->prepare('UPDATE staff SET name=?, biography=?, monthly_salary=?, active=?, updated_at=?, photo=?, video_url=? WHERE id=?');
+                    $statement->execute([$name, $biography, $monthlySalary, !empty($input['active']) ? 1 : 0, $now, $photo, $video, $id]);
                     if ($statement->rowCount() !== 1 && !self::staffExists($id, $pdo)) {
                         throw new InvalidArgumentException('Team member not found');
                     }

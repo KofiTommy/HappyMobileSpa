@@ -36,8 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['start'] = (string) $_POST['slot_choice'];
             }
             $payOnline = ($_POST['payment_choice'] ?? 'spa') === 'mobile_money';
-            if ($payOnline && (!Paystack::ready() || !filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL))) {
-                throw new InvalidArgumentException('Mobile money payment requires an email address and available online checkout.');
+            if ($payOnline && !Paystack::ready()) {
+                throw new InvalidArgumentException('Mobile money checkout is currently unavailable. Please choose payment at the spa.');
             }
             $booking = Booking::create($_POST);
             $_SESSION['recent_booking'] = ['reference' => $booking['reference'], 'time' => time()];

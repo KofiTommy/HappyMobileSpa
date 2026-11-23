@@ -6,7 +6,7 @@ final class Gallery
     public static function images(bool $hero = false): array
     {
         $rows = Database::connection()->query('SELECT * FROM gallery_images WHERE published=1' . ($hero ? ' AND show_in_hero=1' : '') . ' ORDER BY display_order,id')->fetchAll();
-        $rows = array_values(array_filter($rows, static fn (array $row): bool => TeamPhoto::available($row['path'])));
+        $rows = array_values(array_filter($rows, static fn (array $row): bool => GalleryMedia::available($row['path'])));
         if ($rows) { return $rows; }
         return self::defaults();
     }
@@ -35,7 +35,7 @@ final class Gallery
         }
         if ($action === 'delete' && $existing) {
             $pdo->prepare('DELETE FROM gallery_images WHERE id=?')->execute([$id]);
-            TeamPhoto::discard($existing['path']);
+            GalleryMedia::discard($existing['path']);
             return;
         }
         if ($action !== 'save') { throw new InvalidArgumentException('Choose a valid gallery action.'); }
@@ -46,9 +46,9 @@ final class Gallery
             throw new InvalidArgumentException('Enter a caption (up to 160 characters) and image description (up to 255 characters).');
         }
         if ($order === false || $order < 0 || $order > 9999) { throw new InvalidArgumentException('Display order must be between 0 and 9999.'); }
-        $uploaded = TeamPhoto::upload($file, 'gallery');
+        $uploaded = GalleryMedia::upload($file);
         $path = $uploaded ?? ($existing['path'] ?? null);
-        if (!$path) { throw new InvalidArgumentException('Choose a photo to upload.'); }
+        if (!$path) { throw new InvalidArgumentException('Choose a photo or MP4 video to upload.'); }
         $values = [$path, $caption, $alt, !empty($input['published']) ? 1 : 0, !empty($input['show_in_hero']) ? 1 : 0, $order];
         try {
             if ($existing) {
@@ -57,9 +57,9 @@ final class Gallery
                 $pdo->prepare('INSERT INTO gallery_images (path,caption,alt_text,published,show_in_hero,display_order) VALUES (?,?,?,?,?,?)')->execute($values);
             }
         } catch (Throwable $error) {
-            TeamPhoto::discard($uploaded);
+            GalleryMedia::discard($uploaded);
             throw $error;
         }
-        if ($uploaded && $existing) { TeamPhoto::discard($existing['path']); }
+        if ($uploaded && $existing) { GalleryMedia::discard($existing['path']); }
     }
 }

@@ -11,4 +11,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (DomainException | InvalidArgumentException $exception) { $error = $exception->getMessage(); }
 }
 $images = Database::connection()->query('SELECT * FROM gallery_images ORDER BY display_order,id')->fetchAll();
-render_admin('Gallery & homepage photos', 'gallery', compact('admin', 'images', 'error'));
+render_admin('Gallery & homepage media', 'gallery', compact('admin', 'images', 'error'));

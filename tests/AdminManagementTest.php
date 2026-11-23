@@ -186,7 +186,8 @@ function test_booking_agenda_uses_inclusive_read_only_date_ranges(): void
     $booking = seed_confirmed_booking();
     $date = gmdate('Y-m-d', strtotime($booking['slot_start']));
     $rows = Booking::adminList(['start_date' => $date, 'end_date' => $date]);
-    assert_same([$booking['id']], array_map('intval', array_column($rows, 'id')), 'inclusive agenda range');
+    assert_same(true, in_array((int) $booking['id'], array_map('intval', array_column($rows, 'id')), true), 'inclusive agenda range includes booking');
+    foreach ($rows as $row) { assert_same($date, substr($row['slot_start'], 0, 10), 'agenda excludes bookings outside selected date'); }
     assert_same([], Booking::adminList(['start_date' => '1999-01-01', 'end_date' => '1999-01-01']), 'outside agenda range');
     $bookingsTemplate = file_get_contents(APP_ROOT . '/templates/admin/bookings.php');
     assert_contains('appointment-card-admin', $bookingsTemplate, 'responsive appointment card');

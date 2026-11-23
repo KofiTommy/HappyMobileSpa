@@ -9,6 +9,9 @@ if (str_contains($path, "\0") || str_contains($path, '\\') || preg_match('~(?:^|
     return true;
 }
 $file = __DIR__ . $path;
+if (preg_match('~^/assets/videos/gallery/~i', $path) && !preg_match('~^/assets/videos/gallery/[a-f0-9]{32}\.mp4$~D', $path)) {
+    http_response_code(404); echo 'Not found'; return true;
+}
 if (preg_match('~^/assets/images/(?:team|gallery)/~i', $path)
     && !preg_match('~^/assets/images/(?:team|gallery)/[a-f0-9]{32}\.(?:jpg|png|webp)$~D', $path)) {
     http_response_code(404); echo 'Not found'; return true;

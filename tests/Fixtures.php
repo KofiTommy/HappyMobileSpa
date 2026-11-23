@@ -6,7 +6,7 @@ function create_test_schema(PDO $pdo): void
     $pdo->exec('PRAGMA foreign_keys = ON');
     $pdo->exec(<<<'SQL'
 CREATE TABLE services (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, description TEXT NOT NULL, duration_min INTEGER NOT NULL, buffer_min INTEGER NOT NULL DEFAULT 15, price NUMERIC NOT NULL, active INTEGER NOT NULL DEFAULT 1, archived_at TEXT NULL, display_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
-CREATE TABLE staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, biography TEXT NOT NULL DEFAULT '', monthly_salary NUMERIC NOT NULL DEFAULT 0, photo TEXT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE staff (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, biography TEXT NOT NULL DEFAULT '', monthly_salary NUMERIC NOT NULL DEFAULT 0, photo TEXT NULL, video_url TEXT NULL, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE staff_services (staff_id INTEGER NOT NULL, service_id INTEGER NOT NULL, PRIMARY KEY(staff_id, service_id));
 CREATE TABLE staff_hours (id INTEGER PRIMARY KEY AUTOINCREMENT, staff_id INTEGER NOT NULL, weekday INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL);
 CREATE TABLE staff_breaks (id INTEGER PRIMARY KEY AUTOINCREMENT, staff_id INTEGER NOT NULL, weekday INTEGER NOT NULL, start_time TEXT NOT NULL, end_time TEXT NOT NULL);
@@ -87,6 +87,7 @@ function fixture_date(): string
 {
     $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
     $tuesday = $today->modify('next tuesday');
+    if ($tuesday <= new DateTimeImmutable('+48 hours', new DateTimeZone('UTC'))) { $tuesday = $tuesday->modify('+7 days'); }
     return $tuesday->format('Y-m-d');
 }
 

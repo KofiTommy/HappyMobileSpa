@@ -9,7 +9,7 @@ $pdo->exec('CREATE TABLE IF NOT EXISTS uploaded_photos (path VARCHAR(255) PRIMAR
 $paths = $pdo->query("SELECT path FROM gallery_images UNION SELECT photo AS path FROM staff WHERE photo IS NOT NULL")->fetchAll(PDO::FETCH_COLUMN);
 $preserved = 0;
 foreach ($paths as $path) {
-    if (!preg_match('~^assets/images/(team|gallery)/[a-f0-9]{32}\.(jpg|png|webp)$~D', $path)) { continue; }
-    if (TeamPhoto::available($path)) { $preserved++; }
+    if (!preg_match('~^assets/(?:images/(?:team|gallery)/[a-f0-9]{32}\.(?:jpg|png|webp)|videos/gallery/[a-f0-9]{32}\.mp4)$~D', $path)) { continue; }
+    if (GalleryMedia::available($path)) { $preserved++; }
 }
-echo "Protected {$preserved} existing photos. Missing files must be restored from a backup or uploaded again.\n";
+echo "Protected {$preserved} existing photos/videos. Missing files must be restored from a backup or uploaded again.\n";
